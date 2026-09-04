@@ -1,0 +1,292 @@
+<div class="space-y-6 sm:space-y-8" id="recipe-calculator-section">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-stone-200">
+    <div>
+      <h2 class="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
+        <mat-icon class="text-emerald-600">receipt_long</mat-icon>
+        <span>Calculadora de Recetas y Etiqueta Nutricional</span>
+      </h2>
+      <p class="text-xs sm:text-sm text-stone-600 mt-1">
+        Calcula el valor calórico y nutricional por porción de cualquier receta o preparación culinaria.
+      </p>
+    </div>
+
+    <!-- Quick Presets -->
+    <div class="flex items-center gap-2 flex-wrap mt-1 sm:mt-0">
+      <span class="text-xs text-stone-500 font-semibold shrink-0">Ejemplos:</span>
+      <button
+        type="button"
+        id="btn-preset-salmon"
+        (click)="loadPreset('bowl-salmon')"
+        class="flex-1 sm:flex-initial px-3 py-2 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold cursor-pointer min-h-[36px] flex items-center justify-center"
+      >
+        Bowl de Salmón
+      </button>
+      <button
+        type="button"
+        id="btn-preset-tortilla"
+        (click)="loadPreset('tortilla')"
+        class="flex-1 sm:flex-initial px-3 py-2 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold cursor-pointer min-h-[36px] flex items-center justify-center"
+      >
+        Tortilla Espinacas
+      </button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+    <!-- Left Column: Recipe Ingredients Manager (7 cols) -->
+    <div class="lg:col-span-7 space-y-5 sm:space-y-6">
+      <div class="bg-white rounded-xl border border-stone-200/90 shadow-sm p-4 sm:p-6 space-y-4 sm:space-y-5" id="recipe-manager-card">
+        <!-- Recipe Name & Servings Input -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div class="sm:col-span-2">
+            <label for="input-recipe-name" class="block text-xs font-semibold text-stone-700 mb-1">Nombre de la Receta</label>
+            <input
+              id="input-recipe-name"
+              type="text"
+              [value]="recipeName()"
+              (input)="recipeName.set($any($event.target).value)"
+              class="w-full px-3.5 py-2.5 border border-stone-300 rounded-xl text-base sm:text-sm text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+            />
+          </div>
+
+          <div>
+            <label for="input-recipe-servings" class="block text-xs font-semibold text-stone-700 mb-1">Porciones / Raciones</label>
+            <div class="flex items-center border border-stone-300 rounded-xl bg-white overflow-hidden min-h-[42px]">
+              <button
+                type="button"
+                id="btn-servings-dec"
+                (click)="setServings(servings() - 1)"
+                class="px-3.5 py-2 bg-stone-50 hover:bg-stone-100 text-stone-700 font-bold text-sm cursor-pointer min-h-[42px] min-w-[42px] flex items-center justify-center"
+              >
+                -
+              </button>
+              <input
+                id="input-recipe-servings"
+                type="number"
+                min="1"
+                max="24"
+                [value]="servings()"
+                (input)="setServings(+$any($event.target).value)"
+                class="w-full text-center text-sm font-bold text-stone-900 focus:outline-none"
+              />
+              <button
+                type="button"
+                id="btn-servings-inc"
+                (click)="setServings(servings() + 1)"
+                class="px-3.5 py-2 bg-stone-50 hover:bg-stone-100 text-stone-700 font-bold text-sm cursor-pointer min-h-[42px] min-w-[42px] flex items-center justify-center"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add Ingredient Row -->
+        <div class="p-3.5 sm:p-4 bg-stone-50 rounded-xl border border-stone-200/80 space-y-3" id="add-ingredient-box">
+          <h4 class="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
+            <mat-icon class="text-emerald-600 text-sm">add_shopping_cart</mat-icon>
+            <span>Agregar Ingrediente a la Receta</span>
+          </h4>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 sm:gap-3 items-end">
+            <!-- Food Selector -->
+            <div class="sm:col-span-7">
+              <label for="select-ingredient" class="block text-[11px] text-stone-600 font-medium mb-1">Alimento</label>
+              <select
+                id="select-ingredient"
+                [value]="selectedFoodId()"
+                (change)="selectedFoodId.set($any($event.target).value)"
+                class="w-full px-3 py-2.5 bg-white border border-stone-300 rounded-xl text-base sm:text-xs text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+              >
+                @for (item of catalog; track item.id) {
+                  <option [value]="item.id">
+                    {{ item.name }} ({{ item.caloriesPer100g }} kcal/100g)
+                  </option>
+                }
+              </select>
+            </div>
+
+            <!-- Grams input -->
+            <div class="sm:col-span-3">
+              <label for="input-ingredient-grams" class="block text-[11px] text-stone-600 font-medium mb-1">Gramos (g)</label>
+              <input
+                id="input-ingredient-grams"
+                type="number"
+                min="5"
+                max="2000"
+                step="5"
+                [value]="addGrams()"
+                (input)="addGrams.set(+$any($event.target).value)"
+                class="w-full px-3 py-2.5 bg-white border border-stone-300 rounded-xl text-base sm:text-xs font-mono text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+              />
+            </div>
+
+            <!-- Add button -->
+            <div class="sm:col-span-2">
+              <button
+                type="button"
+                id="btn-add-ingredient-submit"
+                (click)="addIngredient()"
+                class="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer min-h-[42px]"
+              >
+                <mat-icon class="text-sm">add</mat-icon>
+                <span>Añadir</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ingredients Table / List -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-stone-700">Ingredientes Incluidos ({{ ingredients().length }})</span>
+            @if (ingredients().length > 0) {
+              <button
+                type="button"
+                id="btn-clear-recipe-ingredients"
+                (click)="clearIngredients()"
+                class="text-xs text-stone-500 hover:text-rose-600 cursor-pointer py-1 px-1.5"
+              >
+                Vaciar lista
+              </button>
+            }
+          </div>
+
+          <div class="border border-stone-200 rounded-xl overflow-hidden divide-y divide-stone-100" id="recipe-ingredients-list">
+            @for (ing of ingredients(); track ing.id) {
+              <div class="p-3 bg-white flex items-center justify-between hover:bg-stone-50/60 transition-colors gap-2.5 min-h-[52px]">
+                <div class="min-w-0 flex-1">
+                  <h5 class="text-xs font-semibold text-stone-900 truncate">{{ ing.name }}</h5>
+                  <div class="text-[10px] sm:text-[11px] text-stone-500 mt-0.5 truncate">
+                    <span class="font-mono font-medium text-stone-800">{{ ing.grams }}g</span> ·
+                    <span>P: {{ ing.protein }}g</span> ·
+                    <span>C: {{ ing.carbs }}g</span> ·
+                    <span>G: {{ ing.fat }}g</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2.5 shrink-0">
+                  <span class="text-xs font-bold font-mono text-stone-900">{{ ing.calories }} kcal</span>
+                  <button
+                    type="button"
+                    (click)="removeIngredient(ing.id)"
+                    class="p-1.5 text-stone-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center"
+                    title="Quitar ingrediente"
+                  >
+                    <mat-icon class="text-base">close</mat-icon>
+                  </button>
+                </div>
+              </div>
+            } @empty {
+              <div class="p-8 text-center text-xs text-stone-400">
+                No hay ingredientes en esta receta. Añade ingredientes arriba o selecciona un ejemplo predefinido.
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Recipe totals summary footer -->
+        <div class="p-3.5 sm:p-4 bg-stone-100/70 rounded-xl border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div>
+            <span class="text-stone-500">Peso neto total de la receta:</span>
+            <strong class="text-stone-900 ml-1 font-mono">{{ recipeTotals().weight }}g</strong>
+          </div>
+          <div>
+            <span class="text-stone-500">Energía total:</span>
+            <strong class="text-emerald-800 text-sm ml-1 font-mono">{{ recipeTotals().calories }} kcal</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Standard Nutrition Facts Label (5 cols) -->
+    <div class="lg:col-span-5 space-y-5 sm:space-y-6">
+      <!-- Classic FDA/WHO Nutrition Facts Label -->
+      <div class="bg-white border-2 border-stone-900 p-4 sm:p-5 rounded-xl shadow-md font-sans text-stone-900" id="nutrition-facts-label">
+        <h3 class="text-xl sm:text-2xl font-black tracking-tight leading-none border-b-8 border-stone-900 pb-1.5">
+          Información Nutricional
+        </h3>
+
+        <!-- Servings info -->
+        <div class="text-xs py-2 border-b border-stone-900 flex justify-between">
+          <span>Porciones por receta: <strong>{{ servings() }}</strong></span>
+          <span>Tamaño de porción: <strong>{{ perServing().weight }}g</strong></span>
+        </div>
+
+        <!-- Calories Highlight -->
+        <div class="py-2.5 border-b-4 border-stone-900 flex items-baseline justify-between">
+          <div>
+            <div class="text-[10px] sm:text-[11px] font-black uppercase tracking-wider">Cantidad por porción</div>
+            <div class="text-2xl sm:text-3xl font-black font-mono">Calorías</div>
+          </div>
+          <div class="text-3xl sm:text-4xl font-black font-mono" id="label-calories-serving">
+            {{ perServing().calories }}
+          </div>
+        </div>
+
+        <!-- % Daily Value Header -->
+        <div class="text-right text-[11px] font-black py-1.5 border-b border-stone-900">
+          % Valor Diario (% VD)*
+        </div>
+
+        <!-- Nutrients breakdown table -->
+        <div class="text-xs divide-y divide-stone-300">
+          <!-- Total Fat -->
+          <div class="py-1.5 flex justify-between">
+            <span><strong>Grasas Totales</strong> {{ perServing().fat }}g</span>
+            <span class="font-bold font-mono">{{ perServing().dvFat }}%</span>
+          </div>
+
+          <!-- Sodium -->
+          <div class="py-1.5 flex justify-between">
+            <span><strong>Sodio</strong> {{ perServing().sodium }}mg</span>
+            <span class="font-bold font-mono">{{ perServing().dvSod }}%</span>
+          </div>
+
+          <!-- Total Carbs -->
+          <div class="py-1.5 flex justify-between">
+            <span><strong>Carbohidratos Totales</strong> {{ perServing().carbs }}g</span>
+            <span class="font-bold font-mono">{{ perServing().dvCarb }}%</span>
+          </div>
+
+          <!-- Fiber (indented) -->
+          <div class="py-1.5 pl-4 flex justify-between text-stone-700">
+            <span>Fibra Dietética {{ perServing().fiber }}g</span>
+            <span class="font-bold font-mono">{{ perServing().dvFib }}%</span>
+          </div>
+
+          <!-- Protein -->
+          <div class="py-1.5 flex justify-between border-b-4 border-stone-900">
+            <span><strong>Proteínas</strong> {{ perServing().protein }}g</span>
+            <span class="font-bold font-mono">{{ perServing().dvProt }}%</span>
+          </div>
+        </div>
+
+        <p class="text-[10px] text-stone-500 pt-2 leading-tight">
+          * Los porcentajes de Valores Diarios (% VD) están basados en una dieta de referencia de 2,000 calorías.
+          Tus valores diarios pueden ser mayores o menores según tus requerimientos individuales.
+        </p>
+      </div>
+
+      <!-- Macro breakdown of single serving -->
+      <div class="bg-stone-50 border border-stone-200 p-4 rounded-xl space-y-2 text-xs">
+        <span class="font-bold text-stone-800">Aporte de macros por porción ({{ perServing().weight }}g):</span>
+        <div class="grid grid-cols-3 gap-2 text-center pt-1">
+          <div class="bg-white p-2.5 rounded-xl border border-stone-200">
+            <div class="text-[10px] text-stone-500">Proteína</div>
+            <div class="font-bold text-emerald-700 text-sm sm:text-base font-mono">{{ perServing().protein }}g</div>
+          </div>
+          <div class="bg-white p-2.5 rounded-xl border border-stone-200">
+            <div class="text-[10px] text-stone-500">Carbohidratos</div>
+            <div class="font-bold text-amber-700 text-sm sm:text-base font-mono">{{ perServing().carbs }}g</div>
+          </div>
+          <div class="bg-white p-2.5 rounded-xl border border-stone-200">
+            <div class="text-[10px] text-stone-500">Grasas</div>
+            <div class="font-bold text-blue-700 text-sm sm:text-base font-mono">{{ perServing().fat }}g</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,711 @@
+<div class="space-y-6 sm:space-y-8" id="meal-tracker-section">
+  <!-- Header with actions -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-stone-200">
+    <div>
+      <h2 class="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
+        <mat-icon class="text-emerald-600">restaurant_menu</mat-icon>
+        <span>Calculadora de Comidas y Registro Diario</span>
+      </h2>
+      <p class="text-xs sm:text-sm text-stone-600 mt-1">
+        Añade alimentos a tus comidas para calcular calorías, macronutrientes y controlar tu progreso en tiempo real.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-2 flex-wrap">
+      <button
+        type="button"
+        id="btn-load-samples"
+        (click)="loadSample()"
+        class="flex-1 sm:flex-initial px-3 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer min-h-[38px]"
+        title="Cargar alimentos de ejemplo para probar el cálculo inmediatamente"
+      >
+        <mat-icon class="text-stone-500 text-sm">auto_fix_high</mat-icon>
+        <span>Ejemplo</span>
+      </button>
+
+      <button
+        type="button"
+        id="btn-copy-report"
+        (click)="copyDayReport()"
+        class="flex-1 sm:flex-initial px-3 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer min-h-[38px]"
+      >
+        <mat-icon class="text-stone-500 text-sm">content_copy</mat-icon>
+        <span>{{ copiedReport() ? '¡Copiado!' : 'Copiar Resumen' }}</span>
+      </button>
+
+      @if (dailyTotals().totalCount > 0) {
+        <button
+          type="button"
+          id="btn-clear-day"
+          (click)="clearDay()"
+          class="px-3 py-2 rounded-xl border border-stone-200 text-stone-500 hover:text-rose-600 hover:bg-rose-50 text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer min-h-[38px]"
+          title="Vaciar todo el diario de hoy"
+        >
+          <mat-icon class="text-sm">delete_outline</mat-icon>
+          <span>Vaciar</span>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Real-time Daily Nutrition Progress Overview Card -->
+  <div class="bg-stone-900 text-white rounded-2xl p-4 sm:p-6 shadow-sm space-y-5 sm:space-y-6" id="daily-progress-card">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-5 sm:gap-6 items-center">
+      <!-- Main Calorie Metric -->
+      <div class="md:col-span-1 border-b md:border-b-0 md:border-r border-stone-800 pb-4 md:pb-0 md:pr-4">
+        <span class="text-[11px] sm:text-xs text-stone-400 font-semibold uppercase tracking-wider block mb-1">
+          Calorías del Día
+        </span>
+        <div class="flex items-baseline gap-1.5">
+          <span class="text-3xl sm:text-4xl font-extrabold text-white font-mono" id="current-calories-display">
+            {{ dailyTotals().calories }}
+          </span>
+          <span class="text-stone-400 text-xs sm:text-sm font-medium">/ {{ targets().targetCalories }} kcal</span>
+        </div>
+
+        <!-- Remaining indicator -->
+        <div class="mt-1.5 text-xs">
+          @if (targets().targetCalories - dailyTotals().calories >= 0) {
+            <span class="text-emerald-400 font-medium">
+              Te restan {{ targets().targetCalories - dailyTotals().calories }} kcal para tu meta
+            </span>
+          } @else {
+            <span class="text-amber-400 font-medium">
+              Excedido por {{ dailyTotals().calories - targets().targetCalories }} kcal
+            </span>
+          }
+        </div>
+
+        <div class="w-full bg-stone-800 h-2 rounded-full mt-3 overflow-hidden">
+          <div
+            class="h-full transition-all"
+            [class.bg-emerald-500]="dailyTotals().calories <= targets().targetCalories"
+            [class.bg-amber-500]="dailyTotals().calories > targets().targetCalories"
+            [style.width.%]="calProgressPct()"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Macro Progress Bars (3 cols) -->
+      <div class="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
+        <!-- Protein Progress -->
+        <div class="bg-stone-800/70 p-3 sm:p-3.5 rounded-xl border border-stone-800">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-semibold text-emerald-400 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Proteína
+            </span>
+            <span class="font-mono text-stone-300">{{ dailyTotals().protein }}g / {{ targets().targetProteinGrams }}g</span>
+          </div>
+          <div class="w-full bg-stone-700/60 h-2 rounded-full overflow-hidden mt-1.5">
+            <div class="bg-emerald-500 h-full transition-all" [style.width.%]="proteinProgressPct()"></div>
+          </div>
+          <div class="text-[11px] text-stone-400 mt-1.5 flex justify-between">
+            <span>{{ proteinProgressPct() }}% meta</span>
+            <span>{{ dailyTotals().protein * 4 | number:'1.0-0' }} kcal</span>
+          </div>
+        </div>
+
+        <!-- Carbs Progress -->
+        <div class="bg-stone-800/70 p-3 sm:p-3.5 rounded-xl border border-stone-800">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-semibold text-amber-400 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span> Carbohidratos
+            </span>
+            <span class="font-mono text-stone-300">{{ dailyTotals().carbs }}g / {{ targets().targetCarbsGrams }}g</span>
+          </div>
+          <div class="w-full bg-stone-700/60 h-2 rounded-full overflow-hidden mt-1.5">
+            <div class="bg-amber-400 h-full transition-all" [style.width.%]="carbsProgressPct()"></div>
+          </div>
+          <div class="text-[11px] text-stone-400 mt-1.5 flex justify-between">
+            <span>{{ carbsProgressPct() }}% meta</span>
+            <span>{{ dailyTotals().carbs * 4 | number:'1.0-0' }} kcal</span>
+          </div>
+        </div>
+
+        <!-- Fat Progress -->
+        <div class="bg-stone-800/70 p-3 sm:p-3.5 rounded-xl border border-stone-800">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-semibold text-sky-400 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-sky-400"></span> Grasas
+            </span>
+            <span class="font-mono text-stone-300">{{ dailyTotals().fat }}g / {{ targets().targetFatGrams }}g</span>
+          </div>
+          <div class="w-full bg-stone-700/60 h-2 rounded-full overflow-hidden mt-1.5">
+            <div class="bg-sky-400 h-full transition-all" [style.width.%]="fatProgressPct()"></div>
+          </div>
+          <div class="text-[11px] text-stone-400 mt-1.5 flex justify-between">
+            <span>{{ fatProgressPct() }}% meta</span>
+            <span>{{ dailyTotals().fat * 9 | number:'1.0-0' }} kcal</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meal Selector Tabs -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3" id="meal-type-tabs">
+    <!-- Breakfast -->
+    <button
+      type="button"
+      id="tab-meal-breakfast"
+      (click)="activeMeal.set('breakfast')"
+      class="p-3 sm:p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[64px]"
+      [class.bg-white]="activeMeal() === 'breakfast'"
+      [class.border-emerald-600]="activeMeal() === 'breakfast'"
+      [class.ring-2]="activeMeal() === 'breakfast'"
+      [class.ring-emerald-500/20]="activeMeal() === 'breakfast'"
+      [class.bg-stone-50]="activeMeal() !== 'breakfast'"
+      [class.border-stone-200]="activeMeal() !== 'breakfast'"
+    >
+      <div class="flex items-center justify-between">
+        <span class="font-semibold text-xs sm:text-sm text-stone-900 flex items-center gap-1.5">
+          <mat-icon class="text-amber-500 text-base sm:text-lg">wb_sunny</mat-icon>
+          Desayuno
+        </span>
+        <span class="text-xs text-stone-500 font-mono">{{ mealSummaries().breakfast.items.length }}</span>
+      </div>
+      <div class="mt-1.5 sm:mt-2 text-sm sm:text-base font-bold text-stone-900 font-mono">
+        {{ mealSummaries().breakfast.calories }} <span class="text-xs font-normal text-stone-500">kcal</span>
+      </div>
+    </button>
+
+    <!-- Lunch -->
+    <button
+      type="button"
+      id="tab-meal-lunch"
+      (click)="activeMeal.set('lunch')"
+      class="p-3 sm:p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[64px]"
+      [class.bg-white]="activeMeal() === 'lunch'"
+      [class.border-emerald-600]="activeMeal() === 'lunch'"
+      [class.ring-2]="activeMeal() === 'lunch'"
+      [class.ring-emerald-500/20]="activeMeal() === 'lunch'"
+      [class.bg-stone-50]="activeMeal() !== 'lunch'"
+      [class.border-stone-200]="activeMeal() !== 'lunch'"
+    >
+      <div class="flex items-center justify-between">
+        <span class="font-semibold text-xs sm:text-sm text-stone-900 flex items-center gap-1.5">
+          <mat-icon class="text-emerald-500 text-base sm:text-lg">restaurant</mat-icon>
+          Almuerzo
+        </span>
+        <span class="text-xs text-stone-500 font-mono">{{ mealSummaries().lunch.items.length }}</span>
+      </div>
+      <div class="mt-1.5 sm:mt-2 text-sm sm:text-base font-bold text-stone-900 font-mono">
+        {{ mealSummaries().lunch.calories }} <span class="text-xs font-normal text-stone-500">kcal</span>
+      </div>
+    </button>
+
+    <!-- Dinner -->
+    <button
+      type="button"
+      id="tab-meal-dinner"
+      (click)="activeMeal.set('dinner')"
+      class="p-3 sm:p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[64px]"
+      [class.bg-white]="activeMeal() === 'dinner'"
+      [class.border-emerald-600]="activeMeal() === 'dinner'"
+      [class.ring-2]="activeMeal() === 'dinner'"
+      [class.ring-emerald-500/20]="activeMeal() === 'dinner'"
+      [class.bg-stone-50]="activeMeal() !== 'dinner'"
+      [class.border-stone-200]="activeMeal() !== 'dinner'"
+    >
+      <div class="flex items-center justify-between">
+        <span class="font-semibold text-xs sm:text-sm text-stone-900 flex items-center gap-1.5">
+          <mat-icon class="text-indigo-500 text-base sm:text-lg">nightlight_round</mat-icon>
+          Cena
+        </span>
+        <span class="text-xs text-stone-500 font-mono">{{ mealSummaries().dinner.items.length }}</span>
+      </div>
+      <div class="mt-1.5 sm:mt-2 text-sm sm:text-base font-bold text-stone-900 font-mono">
+        {{ mealSummaries().dinner.calories }} <span class="text-xs font-normal text-stone-500">kcal</span>
+      </div>
+    </button>
+
+    <!-- Snacks -->
+    <button
+      type="button"
+      id="tab-meal-snack"
+      (click)="activeMeal.set('snack')"
+      class="p-3 sm:p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[64px]"
+      [class.bg-white]="activeMeal() === 'snack'"
+      [class.border-emerald-600]="activeMeal() === 'snack'"
+      [class.ring-2]="activeMeal() === 'snack'"
+      [class.ring-emerald-500/20]="activeMeal() === 'snack'"
+      [class.bg-stone-50]="activeMeal() !== 'snack'"
+      [class.border-stone-200]="activeMeal() !== 'snack'"
+    >
+      <div class="flex items-center justify-between">
+        <span class="font-semibold text-xs sm:text-sm text-stone-900 flex items-center gap-1.5">
+          <mat-icon class="text-rose-500 text-base sm:text-lg">apple</mat-icon>
+          Snacks
+        </span>
+        <span class="text-xs text-stone-500 font-mono">{{ mealSummaries().snack.items.length }}</span>
+      </div>
+      <div class="mt-1.5 sm:mt-2 text-sm sm:text-base font-bold text-stone-900 font-mono">
+        {{ mealSummaries().snack.calories }} <span class="text-xs font-normal text-stone-500">kcal</span>
+      </div>
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+    <!-- Left Column: Add Food Panel (Catalog Search + AI Analyzer + Manual) (7 cols) -->
+    <div class="lg:col-span-7 space-y-5 sm:space-y-6">
+      <div class="bg-white rounded-xl border border-stone-200/90 shadow-sm p-4 sm:p-6 space-y-4 sm:space-y-5" id="add-food-card">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <h3 class="font-bold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+            <mat-icon class="text-emerald-600">add_circle_outline</mat-icon>
+            <span>Añadir a {{ getMealName(activeMeal()) }}</span>
+          </h3>
+
+          <button
+            type="button"
+            id="btn-open-manual-modal"
+            (click)="openManualModal()"
+            class="text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 px-3 py-2 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1 min-h-[38px]"
+          >
+            <mat-icon class="text-sm">edit_note</mat-icon>
+            <span>Crear Alimento Manual</span>
+          </button>
+        </div>
+
+        <!-- Natural Language AI Analyzer Accordion / Box -->
+        <div class="p-3.5 sm:p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/70 space-y-3" id="ai-analyzer-box">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+              <mat-icon class="text-emerald-600 text-sm">psychology</mat-icon>
+              Analizador Inteligente (Gemini)
+            </span>
+            <span class="text-[10px] text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full font-medium">Estimación instantánea</span>
+          </div>
+          <p class="text-xs text-stone-600">
+            Escribe cualquier comida o receta (ej: "2 huevos revueltos con 1 tostada y 50g aguacate"):
+          </p>
+
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              id="input-ai-prompt"
+              [value]="aiPrompt()"
+              (input)="aiPrompt.set($any($event.target).value)"
+              (keydown.enter)="analyzeWithAI()"
+              placeholder="Ej: 1 taza de café con leche y 1 croissant"
+              class="w-full sm:flex-1 px-3 py-2.5 text-base sm:text-xs bg-white border border-stone-300 rounded-xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[42px]"
+            />
+            <button
+              type="button"
+              id="btn-run-ai"
+              (click)="analyzeWithAI()"
+              [disabled]="isAnalyzingAI() || !aiPrompt().trim()"
+              class="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0 min-h-[42px]"
+            >
+              @if (isAnalyzingAI()) {
+                <mat-icon class="animate-spin text-sm">autorenew</mat-icon>
+                <span>Analizando...</span>
+              } @else {
+                <mat-icon class="text-sm">auto_awesome</mat-icon>
+                <span>Calcular</span>
+              }
+            </button>
+          </div>
+
+          @if (aiError()) {
+            <div class="text-xs text-rose-700 bg-rose-50 p-2.5 rounded-lg border border-rose-200 flex items-center gap-1.5">
+              <mat-icon class="text-rose-500 text-sm">info</mat-icon>
+              <span>{{ aiError() }}</span>
+            </div>
+          }
+
+          @if (aiResult(); as res) {
+            <div class="bg-white p-3.5 rounded-xl border border-emerald-300 shadow-sm space-y-2 mt-2" id="ai-result-card">
+              <div class="flex items-start justify-between">
+                <div>
+                  <h4 class="font-bold text-xs text-stone-900">{{ res.name }}</h4>
+                  <p class="text-[11px] text-stone-500">{{ res.portion }} (aprox. {{ res.grams }}g)</p>
+                </div>
+                <span class="font-bold text-emerald-800 text-sm font-mono">{{ res.calories }} kcal</span>
+              </div>
+
+              <!-- Macros breakdown tags -->
+              <div class="flex flex-wrap gap-1.5 text-[11px] text-stone-600 pt-1 border-t border-stone-100">
+                <span class="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded font-medium">Prot: {{ res.protein }}g</span>
+                <span class="bg-amber-50 text-amber-800 px-2 py-0.5 rounded font-medium">Carb: {{ res.carbs }}g</span>
+                <span class="bg-sky-50 text-sky-800 px-2 py-0.5 rounded font-medium">Grasa: {{ res.fat }}g</span>
+                @if (res.fiber) {
+                  <span class="bg-stone-100 text-stone-700 px-2 py-0.5 rounded">Fibra: {{ res.fiber }}g</span>
+                }
+              </div>
+
+              <button
+                type="button"
+                id="btn-add-ai-result"
+                (click)="addAiResultToMeal()"
+                class="w-full mt-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer min-h-[42px]"
+              >
+                <mat-icon class="text-sm">add</mat-icon>
+                <span>Añadir esta estimación a {{ getMealName(activeMeal()) }}</span>
+              </button>
+            </div>
+          }
+        </div>
+
+        <!-- Catalog Search & Filters -->
+        <div class="space-y-2.5 sm:space-y-3">
+          <div class="relative">
+            <mat-icon class="absolute left-3 top-3 text-stone-400 text-lg">search</mat-icon>
+            <input
+              type="text"
+              id="input-catalog-search"
+              [value]="searchQuery()"
+              (input)="searchQuery.set($any($event.target).value)"
+              placeholder="Buscar (pollo, arroz, avena, huevo, aguacate...)"
+              class="w-full pl-9 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-base sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white min-h-[42px]"
+            />
+          </div>
+
+          <!-- Category Pills with smooth horizontal scrolling -->
+          <div class="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-none touch-pan-x" id="catalog-category-pills">
+            @for (cat of categories(); track cat) {
+              <button
+                type="button"
+                (click)="selectedCategory.set(cat)"
+                class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors cursor-pointer min-h-[34px] flex items-center"
+                [class.bg-stone-900]="selectedCategory() === cat"
+                [class.text-white]="selectedCategory() === cat"
+                [class.bg-stone-100]="selectedCategory() !== cat"
+                [class.text-stone-600]="selectedCategory() !== cat"
+                [class.hover:bg-stone-200]="selectedCategory() !== cat"
+              >
+                {{ cat }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Selected Food Portion Configurator (if a food is clicked) -->
+        @if (selectedFoodToAdd(); as food) {
+          <div class="p-3.5 sm:p-4 bg-stone-900 text-white rounded-xl space-y-3" id="food-portion-configurator">
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="text-xs text-stone-400">Configurar porción:</span>
+                <h4 class="font-bold text-sm text-white">{{ food.name }}</h4>
+                <p class="text-[11px] text-stone-400">{{ food.servingDescription }}</p>
+              </div>
+              <button
+                type="button"
+                id="btn-cancel-food-selection"
+                (click)="clearSelectedFood()"
+                class="text-stone-400 hover:text-white cursor-pointer p-1"
+              >
+                <mat-icon class="text-base">close</mat-icon>
+              </button>
+            </div>
+
+            <!-- Grams slider & input -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 items-center pt-2 border-t border-stone-800">
+              <div>
+                <div class="flex justify-between text-xs text-stone-300 mb-1">
+                  <span>Cantidad:</span>
+                  <span class="font-bold font-mono text-white">{{ customGrams() }} g</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="500"
+                  step="5"
+                  [value]="customGrams()"
+                  (input)="setGrams(+$any($event.target).value)"
+                  class="w-full accent-emerald-500 cursor-pointer h-2"
+                />
+                <!-- Quick gram chips -->
+                <div class="flex gap-1.5 mt-2">
+                  <button
+                    type="button"
+                    (click)="customGrams.set(50)"
+                    class="flex-1 py-1 px-2 rounded-lg bg-stone-800 text-xs text-stone-300 hover:bg-stone-700 cursor-pointer min-h-[34px]"
+                  >
+                    50g
+                  </button>
+                  <button
+                    type="button"
+                    (click)="customGrams.set(100)"
+                    class="flex-1 py-1 px-2 rounded-lg bg-stone-800 text-xs text-stone-300 hover:bg-stone-700 cursor-pointer min-h-[34px]"
+                  >
+                    100g
+                  </button>
+                  <button
+                    type="button"
+                    (click)="customGrams.set(150)"
+                    class="flex-1 py-1 px-2 rounded-lg bg-stone-800 text-xs text-stone-300 hover:bg-stone-700 cursor-pointer min-h-[34px]"
+                  >
+                    150g
+                  </button>
+                  <button
+                    type="button"
+                    (click)="customGrams.set(200)"
+                    class="flex-1 py-1 px-2 rounded-lg bg-stone-800 text-xs text-stone-300 hover:bg-stone-700 cursor-pointer min-h-[34px]"
+                  >
+                    200g
+                  </button>
+                </div>
+              </div>
+
+              <!-- Calculated nutrition preview -->
+              <div class="bg-stone-800/80 p-3 rounded-xl text-xs space-y-1">
+                <div class="flex justify-between font-bold text-white text-sm">
+                  <span>Calorías:</span>
+                  <span class="text-emerald-400 font-mono">{{ (food.caloriesPer100g * customGrams() / 100) | number:'1.0-0' }} kcal</span>
+                </div>
+                <div class="flex justify-between text-[11px] text-stone-300">
+                  <span>Proteínas:</span>
+                  <span class="font-mono text-stone-200">{{ (food.proteinPer100g * customGrams() / 100) | number:'1.1-1' }}g</span>
+                </div>
+                <div class="flex justify-between text-[11px] text-stone-300">
+                  <span>Carbohidratos:</span>
+                  <span class="font-mono text-stone-200">{{ (food.carbsPer100g * customGrams() / 100) | number:'1.1-1' }}g</span>
+                </div>
+                <div class="flex justify-between text-[11px] text-stone-300">
+                  <span>Grasas:</span>
+                  <span class="font-mono text-stone-200">{{ (food.fatPer100g * customGrams() / 100) | number:'1.1-1' }}g</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              id="btn-confirm-add-food"
+              (click)="addSelectedFood()"
+              class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer min-h-[44px]"
+            >
+              <mat-icon class="text-base">check</mat-icon>
+              <span>Agregar a {{ getMealName(activeMeal()) }}</span>
+            </button>
+          </div>
+        }
+
+        <!-- Catalog Food List -->
+        <div class="max-h-72 overflow-y-auto divide-y divide-stone-100 pr-1" id="food-catalog-list">
+          @for (item of filteredFoods(); track item.id) {
+            <button
+              type="button"
+              (click)="selectFood(item)"
+              class="w-full text-left py-3 px-3 hover:bg-stone-50 rounded-xl cursor-pointer flex items-center justify-between transition-colors group border-0 bg-transparent min-h-[52px]"
+            >
+              <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">
+                <div class="w-8 h-8 rounded-lg bg-stone-100 text-stone-600 flex items-center justify-center group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-colors shrink-0">
+                  <mat-icon class="text-base">{{ item.icon || 'restaurant' }}</mat-icon>
+                </div>
+                <div class="min-w-0">
+                  <h4 class="text-xs font-semibold text-stone-900 group-hover:text-emerald-800 transition-colors truncate">{{ item.name }}</h4>
+                  <p class="text-[10px] text-stone-500 truncate">{{ item.servingDescription }}</p>
+                </div>
+              </div>
+
+              <div class="text-right shrink-0">
+                <div class="text-xs font-bold font-mono text-stone-900">{{ item.caloriesPer100g }} <span class="text-[10px] font-normal text-stone-500">kcal</span></div>
+                <div class="text-[10px] text-stone-400">P:{{ item.proteinPer100g }}g · C:{{ item.carbsPer100g }}g</div>
+              </div>
+            </button>
+          } @empty {
+            <div class="py-8 text-center text-stone-400 text-xs">
+              No se encontraron alimentos con ese término. Puedes crearlo manualmente con el botón superior.
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Foods logged in the current active meal (5 cols) -->
+    <div class="lg:col-span-5 space-y-6">
+      <div class="bg-white rounded-xl border border-stone-200/90 shadow-sm p-4 sm:p-6 space-y-4" id="logged-foods-card">
+        <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+          <div>
+            <h3 class="font-bold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+              <span>Alimentos en {{ getMealName(activeMeal()) }}</span>
+            </h3>
+            <span class="text-xs text-stone-500">
+              {{ mealSummaries()[activeMeal()].items.length }} alimento(s) registrado(s)
+            </span>
+          </div>
+
+          <div class="text-right">
+            <div class="text-lg sm:text-xl font-extrabold text-stone-900 font-mono">
+              {{ mealSummaries()[activeMeal()].calories }} <span class="text-xs font-normal text-stone-500">kcal</span>
+            </div>
+            <div class="text-[10px] sm:text-[11px] text-stone-400">
+              P: {{ mealSummaries()[activeMeal()].protein | number:'1.1-1' }}g · C: {{ mealSummaries()[activeMeal()].carbs | number:'1.1-1' }}g · G: {{ mealSummaries()[activeMeal()].fat | number:'1.1-1' }}g
+            </div>
+          </div>
+        </div>
+
+        <!-- Logged Foods List -->
+        <div class="space-y-2.5" id="meal-logged-items-container">
+          @for (logged of mealSummaries()[activeMeal()].items; track logged.id) {
+            <div class="p-3 bg-stone-50 rounded-xl border border-stone-200/70 hover:border-stone-300 transition-colors flex items-center justify-between gap-2.5">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-baseline justify-between">
+                  <h4 class="text-xs font-bold text-stone-900 truncate">{{ logged.name }}</h4>
+                  <span class="text-xs font-bold font-mono text-stone-900 shrink-0 ml-2">{{ logged.calories }} kcal</span>
+                </div>
+
+                <div class="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-stone-500 mt-1 flex-wrap">
+                  <!-- Grams adjustment button controls with large touch targets -->
+                  <div class="inline-flex items-center border border-stone-200 rounded-lg bg-white overflow-hidden shrink-0">
+                    <button
+                      type="button"
+                      (click)="updateItemGrams(logged, -10)"
+                      class="px-2.5 py-1 hover:bg-stone-100 text-stone-700 text-xs font-bold cursor-pointer min-h-[30px]"
+                      title="Restar 10g"
+                    >
+                      -
+                    </button>
+                    <span class="px-2 font-mono text-stone-800 font-semibold text-xs">{{ logged.grams }}g</span>
+                    <button
+                      type="button"
+                      (click)="updateItemGrams(logged, 10)"
+                      class="px-2.5 py-1 hover:bg-stone-100 text-stone-700 text-xs font-bold cursor-pointer min-h-[30px]"
+                      title="Sumar 10g"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <span class="text-stone-300">|</span>
+                  <span>P: <strong class="text-stone-700">{{ logged.protein }}g</strong></span>
+                  <span>C: <strong class="text-stone-700">{{ logged.carbs }}g</strong></span>
+                  <span>G: <strong class="text-stone-700">{{ logged.fat }}g</strong></span>
+                </div>
+              </div>
+
+              <!-- Delete button -->
+              <button
+                type="button"
+                (click)="removeItem(logged.id)"
+                class="p-2 text-stone-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer shrink-0 min-h-[36px] min-w-[36px] flex items-center justify-center"
+                title="Eliminar este alimento"
+              >
+                <mat-icon class="text-base">delete</mat-icon>
+              </button>
+            </div>
+          } @empty {
+            <div class="py-10 sm:py-12 text-center text-stone-400 text-xs space-y-2">
+              <mat-icon class="text-stone-300 text-3xl">no_meals</mat-icon>
+              <p>No hay alimentos agregados a {{ getMealName(activeMeal()) }} aún.</p>
+              <p class="text-[11px] text-stone-400">Selecciona uno del catálogo a la izquierda o escribe en el analizador IA.</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Custom Food Modal -->
+  @if (showManualModal()) {
+    <div class="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto" id="modal-manual-food">
+      <div class="bg-white rounded-2xl border border-stone-200 shadow-xl max-w-md w-full p-5 sm:p-6 space-y-4 my-auto max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+          <h3 class="font-bold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+            <mat-icon class="text-emerald-600">edit_note</mat-icon>
+            <span>Añadir Alimento Personalizado</span>
+          </h3>
+          <button
+            type="button"
+            (click)="closeManualModal()"
+            class="text-stone-400 hover:text-stone-700 cursor-pointer p-1"
+          >
+            <mat-icon class="text-lg">close</mat-icon>
+          </button>
+        </div>
+
+        <div class="space-y-3.5 text-xs">
+          <div>
+            <label for="manual-input-name" class="block font-semibold text-stone-700 mb-1">Nombre del alimento</label>
+            <input
+              id="manual-input-name"
+              type="text"
+              [value]="manualName()"
+              (input)="manualName.set($any($event.target).value)"
+              placeholder="Ej: Galletas de avena caseras"
+              class="w-full px-3 py-2.5 border border-stone-300 rounded-xl text-stone-900 text-base sm:text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="manual-input-grams" class="block font-semibold text-stone-700 mb-1">Porción (g)</label>
+              <input
+                id="manual-input-grams"
+                type="number"
+                [value]="manualGrams()"
+                (input)="manualGrams.set(+$any($event.target).value)"
+                class="w-full px-3 py-2.5 border border-stone-300 rounded-xl text-stone-900 text-base sm:text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+              />
+            </div>
+            <div>
+              <label for="manual-input-cal" class="block font-semibold text-stone-700 mb-1">Calorías (kcal)</label>
+              <input
+                id="manual-input-cal"
+                type="number"
+                [value]="manualCalories()"
+                (input)="manualCalories.set(+$any($event.target).value)"
+                class="w-full px-3 py-2.5 border border-stone-300 rounded-xl text-stone-900 text-base sm:text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5 sm:gap-3">
+            <div>
+              <label for="manual-input-prot" class="block font-semibold text-emerald-800 mb-1">Proteína (g)</label>
+              <input
+                id="manual-input-prot"
+                type="number"
+                step="0.1"
+                [value]="manualProtein()"
+                (input)="manualProtein.set(+$any($event.target).value)"
+                class="w-full px-3 py-2.5 border border-stone-300 rounded-xl text-stone-900 text-base sm:text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+              />
+            </div>
+            <div>
+              <label for="manual-input-carb" class="block font-semibold text-amber-800 mb-1">Carbos (g)</label>
+              <input
+                id="manual-input-carb"
+                type="number"
+                step="0.1"
+                [value]="manualCarbs()"
+                (input)="manualCarbs.set(+$any($event.target).value)"
+                class="w-full px-3 py-2.5 border border-stone-300 rounded-xl text-stone-900 text-base sm:text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+              />
+            </div>
+            <div>
+              <label for="manual-input-fat" class="block font-semibold text-blue-800 mb-1">Grasas (g)</label>
+              <input
+                id="manual-input-fat"
+                type="number"
+                step="0.1"
+                [value]="manualFat()"
+                (input)="manualFat.set(+$any($event.target).value)"
+                class="w-full px-3 py-2.5 border border-stone-300 rounded-xl text-stone-900 text-base sm:text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-3 pt-3">
+          <button
+            type="button"
+            (click)="closeManualModal()"
+            class="flex-1 py-2.5 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold text-xs cursor-pointer min-h-[44px]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            id="btn-confirm-manual-food"
+            (click)="saveManualFood()"
+            [disabled]="!manualName().trim()"
+            class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-xs cursor-pointer min-h-[44px]"
+          >
+            Añadir a {{ getMealName(activeMeal()) }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

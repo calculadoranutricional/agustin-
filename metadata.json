@@ -1,0 +1,6 @@
+{
+  "name": "Calculadora Nutricional",
+  "description": "Calculadora nutricional y chatbot con Gemini 3.8 Flash para calcular calorías, macronutrientes, balance de comidas y resolver dudas nutricionales personalizadas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

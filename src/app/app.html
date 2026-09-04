@@ -1,0 +1,300 @@
+<div class="min-h-screen bg-stone-50 text-stone-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]" id="nutritional-calculator-app">
+  <!-- Top Global Header -->
+  <header class="bg-white border-b border-stone-200/80 sticky top-0 z-30 shadow-xs" id="app-header">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14 sm:h-20 gap-2 sm:gap-4">
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-2.5 sm:gap-3">
+          <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-stone-900 text-emerald-400 flex items-center justify-center shadow-xs shrink-0">
+            <mat-icon class="text-xl sm:text-2xl">nutrition</mat-icon>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-base sm:text-xl font-bold text-stone-900 tracking-tight leading-tight truncate">
+              Calculadora Nutricional
+            </h1>
+            <p class="text-xs text-stone-500 hidden sm:block truncate">
+              Calorías, Macronutrientes y Registro de Alimentos
+            </p>
+          </div>
+        </div>
+
+        <!-- Quick Live Targets Badge in Header -->
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+          <!-- Mobile compact calories badge -->
+          <div class="flex sm:hidden items-center gap-1 bg-stone-50 py-1 px-2 rounded-lg border border-stone-200 text-[11px] font-mono">
+            <span class="text-stone-400">Hoy:</span>
+            <strong
+              [class.text-emerald-700]="dailyTotals().calories <= targets().targetCalories"
+              [class.text-amber-700]="dailyTotals().calories > targets().targetCalories"
+            >
+              {{ dailyTotals().calories }}
+            </strong>
+            <span class="text-stone-400">/{{ targets().targetCalories }}</span>
+          </div>
+
+          <!-- Desktop full calories badge -->
+          <div class="hidden sm:flex items-center gap-3 bg-stone-50 py-1.5 px-3 rounded-xl border border-stone-200 text-xs">
+            <div>
+              <span class="text-stone-400">Meta:</span>
+              <strong class="text-stone-900 ml-1 font-mono">{{ targets().targetCalories }} kcal</strong>
+            </div>
+            <div class="w-px h-3.5 bg-stone-300"></div>
+            <div>
+              <span class="text-stone-400">Hoy:</span>
+              <strong
+                class="ml-1 font-mono"
+                [class.text-emerald-700]="dailyTotals().calories <= targets().targetCalories"
+                [class.text-amber-700]="dailyTotals().calories > targets().targetCalories"
+              >
+                {{ dailyTotals().calories }} kcal
+              </strong>
+            </div>
+          </div>
+
+          <!-- Quick Action to switch to meals tracker if in another tab -->
+          @if (currentTab() !== 'meals' && dailyTotals().totalCount > 0) {
+            <button
+              type="button"
+              id="btn-quick-to-meals"
+              (click)="setTab('meals')"
+              class="text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <mat-icon class="text-xs">restaurant</mat-icon>
+              <span class="hidden sm:inline">Ver Diario</span> ({{ dailyTotals().totalCount }})
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Segmented Navigation Tabs Bar (Desktop/Tablet) -->
+      <div class="hidden md:flex items-center gap-1.5 border-t border-stone-100 py-2.5 overflow-x-auto scrollbar-none" id="app-tabs-bar">
+        <!-- Tab 1: Macro & Calorie Calculator -->
+        <button
+          type="button"
+          id="tab-btn-macros"
+          (click)="setTab('macros')"
+          class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer"
+          [class.bg-stone-900]="currentTab() === 'macros'"
+          [class.text-white]="currentTab() === 'macros'"
+          [class.shadow-xs]="currentTab() === 'macros'"
+          [class.text-stone-600]="currentTab() !== 'macros'"
+          [class.hover:bg-stone-100]="currentTab() !== 'macros'"
+          [class.hover:text-stone-900]="currentTab() !== 'macros'"
+        >
+          <mat-icon class="text-base">calculate</mat-icon>
+          <span>1. Metas y Macronutrientes</span>
+        </button>
+
+        <!-- Tab 2: Daily Meal Calculator & Tracker -->
+        <button
+          type="button"
+          id="tab-btn-meals"
+          (click)="setTab('meals')"
+          class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer relative"
+          [class.bg-stone-900]="currentTab() === 'meals'"
+          [class.text-white]="currentTab() === 'meals'"
+          [class.shadow-xs]="currentTab() === 'meals'"
+          [class.text-stone-600]="currentTab() !== 'meals'"
+          [class.hover:bg-stone-100]="currentTab() !== 'meals'"
+          [class.hover:text-stone-900]="currentTab() !== 'meals'"
+        >
+          <mat-icon class="text-base">restaurant_menu</mat-icon>
+          <span>2. Calculadora de Comidas del Día</span>
+          @if (dailyTotals().totalCount > 0) {
+            <span
+              class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+              [class.bg-emerald-500]="currentTab() === 'meals'"
+              [class.text-stone-900]="currentTab() === 'meals'"
+              [class.bg-stone-200]="currentTab() !== 'meals'"
+              [class.text-stone-700]="currentTab() !== 'meals'"
+            >
+              {{ dailyTotals().totalCount }}
+            </span>
+          }
+        </button>
+
+        <!-- Tab 3: Recipe & Nutrition Label Calculator -->
+        <button
+          type="button"
+          id="tab-btn-recipes"
+          (click)="setTab('recipes')"
+          class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer"
+          [class.bg-stone-900]="currentTab() === 'recipes'"
+          [class.text-white]="currentTab() === 'recipes'"
+          [class.shadow-xs]="currentTab() === 'recipes'"
+          [class.text-stone-600]="currentTab() !== 'recipes'"
+          [class.hover:bg-stone-100]="currentTab() !== 'recipes'"
+          [class.hover:text-stone-900]="currentTab() !== 'recipes'"
+        >
+          <mat-icon class="text-base">receipt_long</mat-icon>
+          <span>3. Recetas y Etiqueta Nutricional</span>
+        </button>
+
+        <!-- Tab 4: AI Chatbot (Gemini 3.8 Flash) -->
+        <button
+          type="button"
+          id="tab-btn-chatbot"
+          (click)="setTab('chatbot')"
+          class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer"
+          [class.bg-stone-900]="currentTab() === 'chatbot'"
+          [class.text-white]="currentTab() === 'chatbot'"
+          [class.shadow-xs]="currentTab() === 'chatbot'"
+          [class.text-emerald-800]="currentTab() !== 'chatbot'"
+          [class.bg-emerald-50/60]="currentTab() !== 'chatbot'"
+          [class.hover:bg-emerald-100]="currentTab() !== 'chatbot'"
+        >
+          <mat-icon class="text-base text-emerald-500">smart_toy</mat-icon>
+          <span>4. Chatbot IA (Gemini 3.8 Flash)</span>
+          @if (!chatService.hasApiKey()) {
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Clave API requerida"></span>
+          }
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container with bottom padding for mobile bar -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 pb-24 md:pb-8" id="main-content-area">
+    @switch (currentTab()) {
+      @case ('macros') {
+        <app-macro-calculator />
+      }
+      @case ('meals') {
+        <app-meal-tracker />
+      }
+      @case ('recipes') {
+        <app-recipe-calculator />
+      }
+      @case ('chatbot') {
+        <app-nutrition-chatbot />
+      }
+    }
+  </main>
+
+  <!-- Floating Quick Access Button for Gemini 3.8 Flash Chatbot (when on other tabs) -->
+  @if (currentTab() !== 'chatbot') {
+    <button
+      type="button"
+      id="btn-floating-chatbot-launcher"
+      (click)="setTab('chatbot')"
+      class="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 bg-stone-900 hover:bg-stone-800 text-white p-3 sm:px-4 sm:py-3 rounded-2xl shadow-xl border border-stone-700 flex items-center gap-2 transition-all cursor-pointer group hover:scale-105"
+      title="Abrir Chatbot Gemini 3.8 Flash"
+    >
+      <div class="relative">
+        <mat-icon class="text-emerald-400 text-xl sm:text-2xl group-hover:rotate-12 transition-transform">smart_toy</mat-icon>
+        @if (!chatService.hasApiKey()) {
+          <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-stone-900 animate-ping"></span>
+          <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-stone-900"></span>
+        }
+      </div>
+      <div class="text-left hidden sm:block">
+        <div class="text-xs font-bold leading-tight flex items-center gap-1.5">
+          <span>Chatbot NutriAI</span>
+          <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">3.8 Flash</span>
+        </div>
+        <div class="text-[10px] text-stone-400">Preguntar al Asistente</div>
+      </div>
+    </button>
+  }
+
+  <!-- Mobile Fixed Bottom Navigation Bar -->
+  <nav
+    class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200/90 py-1 px-3 flex md:hidden items-center justify-around shadow-lg pb-safe"
+    id="mobile-bottom-nav"
+    aria-label="Navegación móvil"
+  >
+    <!-- Mobile Tab 1: Metas -->
+    <button
+      type="button"
+      id="mobile-nav-macros"
+      (click)="setTab('macros')"
+      class="flex-1 py-1.5 px-2 flex flex-col items-center justify-center min-h-[48px] rounded-xl transition-all cursor-pointer"
+      [class.text-emerald-700]="currentTab() === 'macros'"
+      [class.bg-emerald-50/80]="currentTab() === 'macros'"
+      [class.text-stone-500]="currentTab() !== 'macros'"
+    >
+      <mat-icon class="text-xl" [class.text-emerald-600]="currentTab() === 'macros'">calculate</mat-icon>
+      <span class="text-[11px] font-semibold tracking-tight mt-0.5" [class.font-bold]="currentTab() === 'macros'">
+        Metas
+      </span>
+    </button>
+
+    <!-- Mobile Tab 2: Comidas / Diario -->
+    <button
+      type="button"
+      id="mobile-nav-meals"
+      (click)="setTab('meals')"
+      class="flex-1 py-1.5 px-2 flex flex-col items-center justify-center min-h-[48px] rounded-xl transition-all cursor-pointer relative"
+      [class.text-emerald-700]="currentTab() === 'meals'"
+      [class.bg-emerald-50/80]="currentTab() === 'meals'"
+      [class.text-stone-500]="currentTab() !== 'meals'"
+    >
+      <div class="relative">
+        <mat-icon class="text-xl" [class.text-emerald-600]="currentTab() === 'meals'">restaurant_menu</mat-icon>
+        @if (dailyTotals().totalCount > 0) {
+          <span class="absolute -top-1 -right-2.5 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-600 text-white min-w-[16px] text-center">
+            {{ dailyTotals().totalCount }}
+          </span>
+        }
+      </div>
+      <span class="text-[11px] font-semibold tracking-tight mt-0.5" [class.font-bold]="currentTab() === 'meals'">
+        Diario
+      </span>
+    </button>
+
+    <!-- Mobile Tab 3: Recetas -->
+    <button
+      type="button"
+      id="mobile-nav-recipes"
+      (click)="setTab('recipes')"
+      class="flex-1 py-1.5 px-2 flex flex-col items-center justify-center min-h-[48px] rounded-xl transition-all cursor-pointer"
+      [class.text-emerald-700]="currentTab() === 'recipes'"
+      [class.bg-emerald-50/80]="currentTab() === 'recipes'"
+      [class.text-stone-500]="currentTab() !== 'recipes'"
+    >
+      <mat-icon class="text-xl" [class.text-emerald-600]="currentTab() === 'recipes'">receipt_long</mat-icon>
+      <span class="text-[11px] font-semibold tracking-tight mt-0.5" [class.font-bold]="currentTab() === 'recipes'">
+        Recetas
+      </span>
+    </button>
+
+    <!-- Mobile Tab 4: Chatbot IA -->
+    <button
+      type="button"
+      id="mobile-nav-chatbot"
+      (click)="setTab('chatbot')"
+      class="flex-1 py-1.5 px-2 flex flex-col items-center justify-center min-h-[48px] rounded-xl transition-all cursor-pointer relative"
+      [class.text-emerald-700]="currentTab() === 'chatbot'"
+      [class.bg-emerald-50/80]="currentTab() === 'chatbot'"
+      [class.text-stone-500]="currentTab() !== 'chatbot'"
+    >
+      <div class="relative">
+        <mat-icon class="text-xl" [class.text-emerald-600]="currentTab() === 'chatbot'">smart_toy</mat-icon>
+        @if (!chatService.hasApiKey()) {
+          <span class="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-amber-500"></span>
+        }
+      </div>
+      <span class="text-[11px] font-semibold tracking-tight mt-0.5" [class.font-bold]="currentTab() === 'chatbot'">
+        Chat IA
+      </span>
+    </button>
+  </nav>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-stone-200 py-6 mt-8 mb-16 md:mb-0 text-xs text-stone-500" id="app-footer">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2 text-center sm:text-left">
+        <mat-icon class="text-emerald-600 text-sm">verified</mat-icon>
+        <span>Calculadora Nutricional con fórmulas Mifflin-St Jeor y bases de datos USDA / SEN</span>
+      </div>
+
+      <div class="flex items-center gap-3 text-stone-400 text-[11px] flex-wrap justify-center">
+        <span>1g Prot = 4 kcal</span>
+        <span>·</span>
+        <span>1g Carb = 4 kcal</span>
+        <span>·</span>
+        <span>1g Grasa = 9 kcal</span>
+      </div>
+    </div>
+  </footer>
+</div>

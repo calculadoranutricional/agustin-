@@ -1,0 +1,694 @@
+<div class="space-y-6 sm:space-y-8" id="macro-calculator-section">
+  <!-- Header with summary -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-stone-200">
+    <div>
+      <h2 class="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
+        <mat-icon class="text-emerald-600">calculate</mat-icon>
+        <span>Calculadora de Calorías y Macronutrientes</span>
+      </h2>
+      <p class="text-xs sm:text-sm text-stone-600 mt-1">
+        Cálculo científico de Tasa Metabólica Basal (Mifflin-St Jeor), Gasto Total (TDEE) y división óptima de macros.
+      </p>
+    </div>
+    
+    @if (showSavedFeedback()) {
+      <div class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs sm:text-sm font-medium animate-pulse shrink-0" id="save-feedback-banner">
+        <mat-icon class="text-emerald-600 text-base sm:text-lg">check_circle</mat-icon>
+        <span>Metas actualizadas y guardadas</span>
+      </div>
+    }
+  </div>
+
+  <!-- Mobile Quick Summary Card (visible on mobile screens < lg) -->
+  <div class="block lg:hidden bg-stone-900 text-white rounded-2xl p-4 sm:p-5 shadow-sm space-y-3" id="mobile-quick-results">
+    <div class="flex items-center justify-between">
+      <div>
+        <span class="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Meta Diaria Calculada</span>
+        <div class="flex items-baseline gap-1 mt-0.5">
+          <span class="text-3xl font-black font-mono text-emerald-400">{{ targets().targetCalories }}</span>
+          <span class="text-xs text-stone-300">kcal/día</span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        (click)="triggerSaveNotice()"
+        class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer min-h-[44px]"
+      >
+        <mat-icon class="text-base">save</mat-icon>
+        <span>Aplicar Metas</span>
+      </button>
+    </div>
+
+    <!-- Quick Macros Pills -->
+    <div class="grid grid-cols-3 gap-2 text-center pt-1 border-t border-stone-800 text-xs">
+      <div class="bg-stone-800/80 py-2 px-1.5 rounded-xl border border-emerald-500/20">
+        <div class="text-[10px] text-emerald-400 font-semibold">Proteína</div>
+        <div class="font-bold font-mono text-white text-sm mt-0.5">{{ targets().targetProteinGrams }}g</div>
+        <div class="text-[10px] text-stone-400">{{ targets().proteinPct }}%</div>
+      </div>
+      <div class="bg-stone-800/80 py-2 px-1.5 rounded-xl border border-amber-400/20">
+        <div class="text-[10px] text-amber-400 font-semibold">Carbos</div>
+        <div class="font-bold font-mono text-white text-sm mt-0.5">{{ targets().targetCarbsGrams }}g</div>
+        <div class="text-[10px] text-stone-400">{{ targets().carbsPct }}%</div>
+      </div>
+      <div class="bg-stone-800/80 py-2 px-1.5 rounded-xl border border-sky-400/20">
+        <div class="text-[10px] text-sky-400 font-semibold">Grasas</div>
+        <div class="font-bold font-mono text-white text-sm mt-0.5">{{ targets().targetFatGrams }}g</div>
+        <div class="text-[10px] text-stone-400">{{ targets().fatPct }}%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+    <!-- Left Column: Biometric Inputs & Parameters (7 cols) -->
+    <div class="lg:col-span-7 space-y-5 sm:space-y-6">
+      <!-- 1. Biometrics Card -->
+      <div class="bg-white rounded-xl border border-stone-200/90 shadow-sm p-4 sm:p-6 space-y-5 sm:space-y-6" id="card-biometrics">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+            <mat-icon class="text-stone-500 text-lg sm:text-xl">person</mat-icon>
+            1. Datos Biométricos
+          </h3>
+          <!-- BMI badge -->
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <span class="text-xs text-stone-500 font-medium">IMC: <strong class="text-stone-800">{{ bmi() }}</strong></span>
+            <span class="text-[11px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border {{ bmiCategory().color }}">
+              {{ bmiCategory().label }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Gender selection -->
+        <div>
+          <span class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-2">
+            Sexo Biológico
+          </span>
+          <div class="grid grid-cols-2 gap-2.5 sm:gap-3" id="gender-selector">
+            <button
+              type="button"
+              id="btn-gender-male"
+              (click)="setGender('male')"
+              class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border font-medium text-sm transition-colors cursor-pointer min-h-[48px]"
+              [class.bg-stone-900]="profile().gender === 'male'"
+              [class.text-white]="profile().gender === 'male'"
+              [class.border-stone-900]="profile().gender === 'male'"
+              [class.bg-stone-50]="profile().gender !== 'male'"
+              [class.text-stone-700]="profile().gender !== 'male'"
+              [class.border-stone-200]="profile().gender !== 'male'"
+              [class.hover:bg-stone-100]="profile().gender !== 'male'"
+            >
+              <mat-icon class="text-lg">male</mat-icon>
+              <span>Hombre</span>
+            </button>
+
+            <button
+              type="button"
+              id="btn-gender-female"
+              (click)="setGender('female')"
+              class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border font-medium text-sm transition-colors cursor-pointer min-h-[48px]"
+              [class.bg-stone-900]="profile().gender === 'female'"
+              [class.text-white]="profile().gender === 'female'"
+              [class.border-stone-900]="profile().gender === 'female'"
+              [class.bg-stone-50]="profile().gender !== 'female'"
+              [class.text-stone-700]="profile().gender !== 'female'"
+              [class.border-stone-200]="profile().gender !== 'female'"
+              [class.hover:bg-stone-100]="profile().gender !== 'female'"
+            >
+              <mat-icon class="text-lg">female</mat-icon>
+              <span>Mujer</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Age, Weight, Height Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <!-- Age -->
+          <div class="bg-stone-50 p-3.5 sm:p-4 rounded-xl border border-stone-200/80">
+            <div class="flex items-center justify-between mb-1">
+              <label for="input-age" class="text-xs font-semibold text-stone-600">Edad</label>
+              <span class="text-xs font-bold text-stone-900">{{ profile().age }} años</span>
+            </div>
+            <input
+              id="input-age"
+              type="number"
+              min="14"
+              max="100"
+              [value]="profile().age"
+              (input)="setAge(+$any($event.target).value)"
+              class="w-full mt-1 px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[42px]"
+            />
+            <input
+              type="range"
+              min="14"
+              max="90"
+              [value]="profile().age"
+              (input)="setAge(+$any($event.target).value)"
+              class="w-full mt-2.5 accent-stone-900 cursor-pointer h-2"
+            />
+          </div>
+
+          <!-- Weight -->
+          <div class="bg-stone-50 p-3.5 sm:p-4 rounded-xl border border-stone-200/80">
+            <div class="flex items-center justify-between mb-1">
+              <label for="input-weight" class="text-xs font-semibold text-stone-600">Peso</label>
+              <span class="text-xs font-bold text-stone-900">{{ profile().weightKg }} kg</span>
+            </div>
+            <input
+              id="input-weight"
+              type="number"
+              step="0.5"
+              min="35"
+              max="200"
+              [value]="profile().weightKg"
+              (input)="setWeight(+$any($event.target).value)"
+              class="w-full mt-1 px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[42px]"
+            />
+            <input
+              type="range"
+              min="35"
+              max="160"
+              step="0.5"
+              [value]="profile().weightKg"
+              (input)="setWeight(+$any($event.target).value)"
+              class="w-full mt-2.5 accent-stone-900 cursor-pointer h-2"
+            />
+          </div>
+
+          <!-- Height -->
+          <div class="bg-stone-50 p-3.5 sm:p-4 rounded-xl border border-stone-200/80">
+            <div class="flex items-center justify-between mb-1">
+              <label for="input-height" class="text-xs font-semibold text-stone-600">Altura</label>
+              <span class="text-xs font-bold text-stone-900">{{ profile().heightCm }} cm</span>
+            </div>
+            <input
+              id="input-height"
+              type="number"
+              min="120"
+              max="220"
+              [value]="profile().heightCm"
+              (input)="setHeight(+$any($event.target).value)"
+              class="w-full mt-1 px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[42px]"
+            />
+            <input
+              type="range"
+              min="130"
+              max="210"
+              [value]="profile().heightCm"
+              (input)="setHeight(+$any($event.target).value)"
+              class="w-full mt-2.5 accent-stone-900 cursor-pointer h-2"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Physical Activity Level -->
+      <div class="bg-white rounded-xl border border-stone-200/90 shadow-sm p-4 sm:p-6 space-y-3 sm:space-y-4" id="card-activity-level">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+            <mat-icon class="text-stone-500 text-lg sm:text-xl">directions_run</mat-icon>
+            2. Nivel de Actividad Física
+          </h3>
+          <span class="text-xs text-stone-500">Factor TDEE</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3" id="activity-level-grid">
+          <!-- Sedentary -->
+          <button
+            type="button"
+            id="btn-act-sedentary"
+            (click)="setActivityLevel('sedentary')"
+            class="text-left p-3.5 rounded-xl border transition-all cursor-pointer min-h-[60px]"
+            [class.border-emerald-600]="profile().activityLevel === 'sedentary'"
+            [class.bg-emerald-50/50]="profile().activityLevel === 'sedentary'"
+            [class.border-stone-200]="profile().activityLevel !== 'sedentary'"
+            [class.hover:border-stone-300]="profile().activityLevel !== 'sedentary'"
+          >
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-sm text-stone-900">Sedentario</span>
+              <span class="text-xs text-stone-400 font-mono">x1.20</span>
+            </div>
+            <p class="text-xs text-stone-500 mt-1 leading-relaxed">
+              Trabajo de escritorio, poco o ningún ejercicio semanal.
+            </p>
+          </button>
+
+          <!-- Light -->
+          <button
+            type="button"
+            id="btn-act-light"
+            (click)="setActivityLevel('light')"
+            class="text-left p-3.5 rounded-xl border transition-all cursor-pointer min-h-[60px]"
+            [class.border-emerald-600]="profile().activityLevel === 'light'"
+            [class.bg-emerald-50/50]="profile().activityLevel === 'light'"
+            [class.border-stone-200]="profile().activityLevel !== 'light'"
+            [class.hover:border-stone-300]="profile().activityLevel !== 'light'"
+          >
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-sm text-stone-900">Ligero</span>
+              <span class="text-xs text-stone-400 font-mono">x1.375</span>
+            </div>
+            <p class="text-xs text-stone-500 mt-1 leading-relaxed">
+              Paseos o ejercicio suave 1 a 3 veces por semana.
+            </p>
+          </button>
+
+          <!-- Moderate -->
+          <button
+            type="button"
+            id="btn-act-moderate"
+            (click)="setActivityLevel('moderate')"
+            class="text-left p-3.5 rounded-xl border transition-all cursor-pointer min-h-[60px]"
+            [class.border-emerald-600]="profile().activityLevel === 'moderate'"
+            [class.bg-emerald-50/50]="profile().activityLevel === 'moderate'"
+            [class.border-stone-200]="profile().activityLevel !== 'moderate'"
+            [class.hover:border-stone-300]="profile().activityLevel !== 'moderate'"
+          >
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-sm text-stone-900">Moderado</span>
+              <span class="text-xs text-stone-400 font-mono">x1.55</span>
+            </div>
+            <p class="text-xs text-stone-500 mt-1 leading-relaxed">
+              Entrenamiento regular moderado 3 a 5 días por semana.
+            </p>
+          </button>
+
+          <!-- Active -->
+          <button
+            type="button"
+            id="btn-act-active"
+            (click)="setActivityLevel('active')"
+            class="text-left p-3.5 rounded-xl border transition-all cursor-pointer min-h-[60px]"
+            [class.border-emerald-600]="profile().activityLevel === 'active'"
+            [class.bg-emerald-50/50]="profile().activityLevel === 'active'"
+            [class.border-stone-200]="profile().activityLevel !== 'active'"
+            [class.hover:border-stone-300]="profile().activityLevel !== 'active'"
+          >
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-sm text-stone-900">Activo / Intenso</span>
+              <span class="text-xs text-stone-400 font-mono">x1.725</span>
+            </div>
+            <p class="text-xs text-stone-500 mt-1 leading-relaxed">
+              Deporte intenso o pesas exigentes 6 a 7 días por semana.
+            </p>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Goal Selection -->
+      <div class="bg-white rounded-xl border border-stone-200/90 shadow-sm p-4 sm:p-6 space-y-3 sm:space-y-4" id="card-goal">
+        <h3 class="font-semibold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+          <mat-icon class="text-stone-500 text-lg sm:text-xl">track_changes</mat-icon>
+          3. Objetivo Nutricional
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3" id="goals-grid">
+          <!-- Fat loss light -->
+          <button
+            type="button"
+            id="btn-goal-fatloss-light"
+            (click)="setGoal('fat_loss_light')"
+            class="p-3.5 rounded-xl border text-left transition-all cursor-pointer min-h-[72px]"
+            [class.border-amber-600]="profile().goal === 'fat_loss_light'"
+            [class.bg-amber-50/40]="profile().goal === 'fat_loss_light'"
+            [class.border-stone-200]="profile().goal !== 'fat_loss_light'"
+          >
+            <div class="text-xs font-bold text-amber-700 uppercase">Déficit Suave</div>
+            <div class="text-sm font-semibold text-stone-900 mt-0.5">-15% Calorías</div>
+            <div class="text-xs text-stone-500 mt-1">Pérdida de grasa lenta, cómoda y sin hambre.</div>
+          </button>
+
+          <!-- Fat loss moderate -->
+          <button
+            type="button"
+            id="btn-goal-fatloss-mod"
+            (click)="setGoal('fat_loss_moderate')"
+            class="p-3.5 rounded-xl border text-left transition-all cursor-pointer relative min-h-[72px]"
+            [class.border-amber-600]="profile().goal === 'fat_loss_moderate'"
+            [class.bg-amber-50/60]="profile().goal === 'fat_loss_moderate'"
+            [class.border-stone-200]="profile().goal !== 'fat_loss_moderate'"
+          >
+            <span class="absolute -top-2 right-2 px-1.5 py-0.5 bg-amber-600 text-white text-[10px] font-bold rounded">Recomendado</span>
+            <div class="text-xs font-bold text-amber-700 uppercase">Déficit Óptimo</div>
+            <div class="text-sm font-semibold text-stone-900 mt-0.5">-20% Calorías</div>
+            <div class="text-xs text-stone-500 mt-1">Equilibrio ideal entre quema grasa y masa muscular.</div>
+          </button>
+
+          <!-- Maintain -->
+          <button
+            type="button"
+            id="btn-goal-maintain"
+            (click)="setGoal('maintain')"
+            class="p-3.5 rounded-xl border text-left transition-all cursor-pointer min-h-[72px]"
+            [class.border-emerald-600]="profile().goal === 'maintain'"
+            [class.bg-emerald-50/40]="profile().goal === 'maintain'"
+            [class.border-stone-200]="profile().goal !== 'maintain'"
+          >
+            <div class="text-xs font-bold text-emerald-700 uppercase">Mantenimiento</div>
+            <div class="text-sm font-semibold text-stone-900 mt-0.5">Normocalórica</div>
+            <div class="text-xs text-stone-500 mt-1">Mantener tu peso actual y recomposición corporal.</div>
+          </button>
+
+          <!-- Muscle gain lean -->
+          <button
+            type="button"
+            id="btn-goal-gain-lean"
+            (click)="setGoal('muscle_gain_lean')"
+            class="p-3.5 rounded-xl border text-left transition-all cursor-pointer min-h-[72px]"
+            [class.border-blue-600]="profile().goal === 'muscle_gain_lean'"
+            [class.bg-blue-50/40]="profile().goal === 'muscle_gain_lean'"
+            [class.border-stone-200]="profile().goal !== 'muscle_gain_lean'"
+          >
+            <div class="text-xs font-bold text-blue-700 uppercase">Volumen Limpio</div>
+            <div class="text-sm font-semibold text-stone-900 mt-0.5">+10% Calorías</div>
+            <div class="text-xs text-stone-500 mt-1">Ganancia de masa muscular minimizando grasa.</div>
+          </button>
+
+          <!-- Muscle gain bulk -->
+          <button
+            type="button"
+            id="btn-goal-gain-bulk"
+            (click)="setGoal('muscle_gain_bulk')"
+            class="p-3.5 rounded-xl border text-left transition-all cursor-pointer min-h-[72px]"
+            [class.border-blue-600]="profile().goal === 'muscle_gain_bulk'"
+            [class.bg-blue-50/40]="profile().goal === 'muscle_gain_bulk'"
+            [class.border-stone-200]="profile().goal !== 'muscle_gain_bulk'"
+          >
+            <div class="text-xs font-bold text-blue-700 uppercase">Volumen Fuerte</div>
+            <div class="text-sm font-semibold text-stone-900 mt-0.5">+15% Calorías</div>
+            <div class="text-xs text-stone-500 mt-1">Mayor aporte energético para deportistas que buscan peso.</div>
+          </button>
+
+          <!-- Fat loss aggressive -->
+          <button
+            type="button"
+            id="btn-goal-fatloss-agg"
+            (click)="setGoal('fat_loss_aggressive')"
+            class="p-3.5 rounded-xl border text-left transition-all cursor-pointer min-h-[72px]"
+            [class.border-rose-600]="profile().goal === 'fat_loss_aggressive'"
+            [class.bg-rose-50/40]="profile().goal === 'fat_loss_aggressive'"
+            [class.border-stone-200]="profile().goal !== 'fat_loss_aggressive'"
+          >
+            <div class="text-xs font-bold text-rose-700 uppercase">Déficit Intenso</div>
+            <div class="text-sm font-semibold text-stone-900 mt-0.5">-25% Calorías</div>
+            <div class="text-xs text-stone-500 mt-1">Para periodos cortos de corte estricto.</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. Macro Presets & Sliders -->
+      <div class="bg-white rounded-xl border border-stone-200/90 shadow-sm p-4 sm:p-6 space-y-4 sm:space-y-5" id="card-macros-split">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+            <mat-icon class="text-stone-500 text-lg sm:text-xl">pie_chart</mat-icon>
+            4. Distribución de Macronutrientes
+          </h3>
+          <span class="text-xs text-stone-500">División calórica</span>
+        </div>
+
+        <div class="flex flex-wrap gap-2" id="macro-presets-container">
+          <button
+            type="button"
+            id="preset-high-protein"
+            (click)="setMacroPreset('high_protein')"
+            class="px-3 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer min-h-[38px]"
+            [class.bg-stone-900]="profile().macroPreset === 'high_protein'"
+            [class.text-white]="profile().macroPreset === 'high_protein'"
+            [class.border-stone-900]="profile().macroPreset === 'high_protein'"
+            [class.bg-stone-50]="profile().macroPreset !== 'high_protein'"
+            [class.text-stone-700]="profile().macroPreset !== 'high_protein'"
+            [class.border-stone-200]="profile().macroPreset !== 'high_protein'"
+          >
+            Alta en Proteínas (35P / 40C / 25G)
+          </button>
+
+          <button
+            type="button"
+            id="preset-balanced"
+            (click)="setMacroPreset('balanced')"
+            class="px-3 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer min-h-[38px]"
+            [class.bg-stone-900]="profile().macroPreset === 'balanced'"
+            [class.text-white]="profile().macroPreset === 'balanced'"
+            [class.border-stone-900]="profile().macroPreset === 'balanced'"
+            [class.bg-stone-50]="profile().macroPreset !== 'balanced'"
+            [class.text-stone-700]="profile().macroPreset !== 'balanced'"
+            [class.border-stone-200]="profile().macroPreset !== 'balanced'"
+          >
+            Equilibrada (25P / 50C / 25G)
+          </button>
+
+          <button
+            type="button"
+            id="preset-low-carb"
+            (click)="setMacroPreset('low_carb')"
+            class="px-3 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer min-h-[38px]"
+            [class.bg-stone-900]="profile().macroPreset === 'low_carb'"
+            [class.text-white]="profile().macroPreset === 'low_carb'"
+            [class.border-stone-900]="profile().macroPreset === 'low_carb'"
+            [class.bg-stone-50]="profile().macroPreset !== 'low_carb'"
+            [class.text-stone-700]="profile().macroPreset !== 'low_carb'"
+            [class.border-stone-200]="profile().macroPreset !== 'low_carb'"
+          >
+            Baja en Carbohidratos (35P / 20C / 45G)
+          </button>
+
+          <button
+            type="button"
+            id="preset-keto"
+            (click)="setMacroPreset('keto')"
+            class="px-3 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer min-h-[38px]"
+            [class.bg-stone-900]="profile().macroPreset === 'keto'"
+            [class.text-white]="profile().macroPreset === 'keto'"
+            [class.border-stone-900]="profile().macroPreset === 'keto'"
+            [class.bg-stone-50]="profile().macroPreset !== 'keto'"
+            [class.text-stone-700]="profile().macroPreset !== 'keto'"
+            [class.border-stone-200]="profile().macroPreset !== 'keto'"
+          >
+            Keto / Cetogénica (25P / 5C / 70G)
+          </button>
+
+          <button
+            type="button"
+            id="preset-custom"
+            (click)="setMacroPreset('custom')"
+            class="px-3 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer min-h-[38px]"
+            [class.bg-stone-900]="profile().macroPreset === 'custom'"
+            [class.text-white]="profile().macroPreset === 'custom'"
+            [class.border-stone-900]="profile().macroPreset === 'custom'"
+            [class.bg-stone-50]="profile().macroPreset !== 'custom'"
+            [class.text-stone-700]="profile().macroPreset !== 'custom'"
+            [class.border-stone-200]="profile().macroPreset !== 'custom'"
+          >
+            Personalizada...
+          </button>
+        </div>
+
+        <!-- Custom Sliders when 'custom' preset is selected -->
+        @if (profile().macroPreset === 'custom') {
+          <div class="p-3.5 sm:p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-4 mt-3" id="custom-sliders-box">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-1">
+              <span class="font-semibold text-stone-700">Ajuste manual de porcentajes:</span>
+              <span
+                class="font-bold px-2 py-0.5 rounded text-xs inline-block w-fit"
+                [class.bg-emerald-100]="customSum() === 100"
+                [class.text-emerald-800]="customSum() === 100"
+                [class.bg-rose-100]="customSum() !== 100"
+                [class.text-rose-800]="customSum() !== 100"
+              >
+                Suma: {{ customSum() }}% (Debe ser 100%)
+              </span>
+            </div>
+
+            <!-- Protein slider -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs">
+                <span class="font-medium text-emerald-800">Proteínas ({{ profile().customProteinPct }}%)</span>
+                <span class="text-stone-500 font-mono">{{ targets().targetProteinGrams }}g</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="60"
+                step="5"
+                [value]="profile().customProteinPct"
+                (input)="setCustomProtein(+$any($event.target).value)"
+                class="w-full accent-emerald-600 cursor-pointer h-2"
+              />
+            </div>
+
+            <!-- Carbs slider -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs">
+                <span class="font-medium text-amber-800">Carbohidratos ({{ profile().customCarbsPct }}%)</span>
+                <span class="text-stone-500 font-mono">{{ targets().targetCarbsGrams }}g</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="75"
+                step="5"
+                [value]="profile().customCarbsPct"
+                (input)="setCustomCarbs(+$any($event.target).value)"
+                class="w-full accent-amber-600 cursor-pointer h-2"
+              />
+            </div>
+
+            <!-- Fat slider -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs">
+                <span class="font-medium text-blue-800">Grasas ({{ profile().customFatPct }}%)</span>
+                <span class="text-stone-500 font-mono">{{ targets().targetFatGrams }}g</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="75"
+                step="5"
+                [value]="profile().customFatPct"
+                (input)="setCustomFat(+$any($event.target).value)"
+                class="w-full accent-blue-600 cursor-pointer h-2"
+              />
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Right Column: Calculated Results & Nutritional Target Dashboard (5 cols) -->
+    <div class="lg:col-span-5 space-y-6">
+      <div class="bg-stone-900 text-white rounded-2xl p-5 sm:p-6 shadow-md space-y-5 sm:space-y-6 sticky top-6" id="card-results-dashboard">
+        <!-- Energy Summary -->
+        <div>
+          <div class="flex items-center justify-between text-stone-400 text-xs font-semibold uppercase tracking-wider mb-2">
+            <span>Objetivo Calórico Diario</span>
+            <span class="px-2 py-0.5 rounded bg-stone-800 text-stone-300 text-[11px] font-normal">
+              @if (targets().calorieDifference < 0) {
+                Déficit {{ targets().calorieDifference }} kcal
+              } @else if (targets().calorieDifference > 0) {
+                Superávit +{{ targets().calorieDifference }} kcal
+              } @else {
+                Mantenimiento
+              }
+            </span>
+          </div>
+
+          <div class="flex items-baseline gap-2">
+            <span class="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-mono" id="val-target-calories">
+              {{ targets().targetCalories }}
+            </span>
+            <span class="text-base sm:text-lg text-stone-400 font-medium">kcal / día</span>
+          </div>
+
+          <!-- BMR & TDEE mini stats -->
+          <div class="grid grid-cols-2 gap-2.5 sm:gap-3 mt-4 pt-4 border-t border-stone-800 text-xs">
+            <div class="bg-stone-800/60 p-2.5 rounded-xl">
+              <div class="text-stone-400 text-[11px]">Tasa Basal (TMB / BMR)</div>
+              <div class="text-sm sm:text-base font-bold text-stone-200 mt-0.5 font-mono">{{ targets().bmr }} kcal</div>
+              <div class="text-[10px] text-stone-400">Gasto en reposo</div>
+            </div>
+            <div class="bg-stone-800/60 p-2.5 rounded-xl">
+              <div class="text-stone-400 text-[11px]">Gasto Total (TDEE)</div>
+              <div class="text-sm sm:text-base font-bold text-stone-200 mt-0.5 font-mono">{{ targets().tdee }} kcal</div>
+              <div class="text-[10px] text-stone-400">Con tu actividad</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Macro Breakdown Graphic Bar -->
+        <div class="space-y-2">
+          <div class="flex justify-between text-xs text-stone-300 font-medium">
+            <span>Distribución de Macros</span>
+            <span class="text-stone-400 font-mono">{{ targets().proteinPct }}% P · {{ targets().carbsPct }}% C · {{ targets().fatPct }}% G</span>
+          </div>
+
+          <!-- Multi-colored segment bar -->
+          <div class="h-3 w-full rounded-full bg-stone-800 flex overflow-hidden">
+            <div class="bg-emerald-500 h-full transition-all" [style.width.%]="targets().proteinPct" title="Proteínas"></div>
+            <div class="bg-amber-400 h-full transition-all" [style.width.%]="targets().carbsPct" title="Carbohidratos"></div>
+            <div class="bg-sky-400 h-full transition-all" [style.width.%]="targets().fatPct" title="Grasas"></div>
+          </div>
+        </div>
+
+        <!-- 3 Macro Cards in Grams -->
+        <div class="space-y-2.5 sm:space-y-3" id="macros-cards-list">
+          <!-- Protein -->
+          <div class="bg-stone-800/80 rounded-xl p-3 sm:p-3.5 border border-emerald-500/20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-2.5 sm:w-3 h-8 rounded-full bg-emerald-500 shrink-0"></div>
+              <div>
+                <div class="text-xs text-stone-300 font-semibold">Proteínas ({{ targets().proteinPct }}%)</div>
+                <div class="text-[10px] sm:text-[11px] text-stone-400">
+                  {{ (targets().targetProteinGrams / profile().weightKg) | number:'1.1-1' }} g por kg corporal
+                </div>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="text-lg sm:text-xl font-extrabold text-white font-mono">{{ targets().targetProteinGrams }}g</div>
+              <div class="text-[10px] text-stone-400">{{ targets().targetProteinGrams * 4 }} kcal</div>
+            </div>
+          </div>
+
+          <!-- Carbs -->
+          <div class="bg-stone-800/80 rounded-xl p-3 sm:p-3.5 border border-amber-400/20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-2.5 sm:w-3 h-8 rounded-full bg-amber-400 shrink-0"></div>
+              <div>
+                <div class="text-xs text-stone-300 font-semibold">Carbohidratos ({{ targets().carbsPct }}%)</div>
+                <div class="text-[10px] sm:text-[11px] text-stone-400">Energía para el día</div>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="text-lg sm:text-xl font-extrabold text-white font-mono">{{ targets().targetCarbsGrams }}g</div>
+              <div class="text-[10px] text-stone-400">{{ targets().targetCarbsGrams * 4 }} kcal</div>
+            </div>
+          </div>
+
+          <!-- Fats -->
+          <div class="bg-stone-800/80 rounded-xl p-3 sm:p-3.5 border border-sky-400/20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-2.5 sm:w-3 h-8 rounded-full bg-sky-400 shrink-0"></div>
+              <div>
+                <div class="text-xs text-stone-300 font-semibold">Grasas Saludables ({{ targets().fatPct }}%)</div>
+                <div class="text-[10px] sm:text-[11px] text-stone-400">Salud hormonal</div>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="text-lg sm:text-xl font-extrabold text-white font-mono">{{ targets().targetFatGrams }}g</div>
+              <div class="text-[10px] text-stone-400">{{ targets().targetFatGrams * 9 }} kcal</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Additional Health Targets (Fiber & Hydration) -->
+        <div class="grid grid-cols-2 gap-2.5 sm:gap-3 pt-2">
+          <div class="bg-stone-800/50 p-2.5 sm:p-3 rounded-xl border border-stone-700/60 flex items-center gap-2 sm:gap-2.5">
+            <mat-icon class="text-emerald-400 text-base sm:text-lg shrink-0">spa</mat-icon>
+            <div>
+              <div class="text-[10px] sm:text-[11px] text-stone-400">Fibra Diaria</div>
+              <div class="text-xs sm:text-sm font-bold text-white font-mono">≥ {{ targets().targetFiberGrams }}g</div>
+            </div>
+          </div>
+
+          <div class="bg-stone-800/50 p-2.5 sm:p-3 rounded-xl border border-stone-700/60 flex items-center gap-2 sm:gap-2.5">
+            <mat-icon class="text-sky-400 text-base sm:text-lg shrink-0">water_drop</mat-icon>
+            <div>
+              <div class="text-[10px] sm:text-[11px] text-stone-400">Agua Mínima</div>
+              <div class="text-xs sm:text-sm font-bold text-white font-mono">{{ targets().targetWaterLiters }} L / día</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Apply Action Button -->
+        <button
+          type="button"
+          id="btn-save-targets"
+          (click)="triggerSaveNotice()"
+          class="w-full py-3.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer min-h-[48px]"
+        >
+          <mat-icon class="text-lg">save</mat-icon>
+          <span>Guardar y Aplicar como Metas de Hoy</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

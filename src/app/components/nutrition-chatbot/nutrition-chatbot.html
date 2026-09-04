@@ -1,0 +1,378 @@
+<div class="space-y-5 sm:space-y-6" id="nutrition-chatbot-container">
+  <!-- Top Title & Model Banner -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 sm:pb-5 border-b border-stone-200" id="chatbot-header">
+    <div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-stone-900 text-emerald-400 flex items-center justify-center shrink-0">
+          <mat-icon class="text-xl">psychology</mat-icon>
+        </div>
+        <h2 class="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
+          <span>NutriAI · Chatbot Nutricional</span>
+        </h2>
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300/80 shrink-0">
+          Gemini 3.8 Flash
+        </span>
+      </div>
+      <p class="text-xs sm:text-sm text-stone-600 mt-1">
+        Consulta dudas sobre calorías, macronutrientes, sustituciones y recetas personalizadas a tus metas.
+      </p>
+    </div>
+
+    <!-- API Key Quick Toggle Button in Header -->
+    <div class="flex items-center gap-2 self-start sm:self-center">
+      <button
+        type="button"
+        id="btn-toggle-api-key-config"
+        (click)="chatService.toggleConfigOpen()"
+        class="px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[38px]"
+        [class.bg-emerald-50]="chatService.hasApiKey()"
+        [class.border-emerald-300]="chatService.hasApiKey()"
+        [class.text-emerald-800]="chatService.hasApiKey()"
+        [class.bg-amber-50]="!chatService.hasApiKey()"
+        [class.border-amber-300]="!chatService.hasApiKey()"
+        [class.text-amber-900]="!chatService.hasApiKey()"
+      >
+        <mat-icon class="text-base">key</mat-icon>
+        @if (chatService.hasApiKey()) {
+          <span>Clave API Configurada</span>
+        } @else {
+          <span>Ingresar Clave API</span>
+        }
+        <mat-icon class="text-xs">
+          {{ chatService.isApiKeyConfigOpen() ? 'expand_less' : 'expand_more' }}
+        </mat-icon>
+      </button>
+
+      <button
+        type="button"
+        id="btn-clear-chat-history"
+        (click)="chatService.clearHistory()"
+        class="px-2.5 py-1.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-600 text-xs font-semibold flex items-center gap-1 cursor-pointer min-h-[38px]"
+        title="Reiniciar conversación"
+      >
+        <mat-icon class="text-base">restart_alt</mat-icon>
+        <span class="hidden sm:inline">Reiniciar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- API Key Configuration Card (Requested by User) -->
+  @if (chatService.isApiKeyConfigOpen()) {
+    <div
+      class="bg-white rounded-2xl border-2 p-4 sm:p-5 shadow-xs space-y-3.5 transition-all"
+      [class.border-emerald-300]="chatService.hasApiKey()"
+      [class.border-amber-300]="!chatService.hasApiKey()"
+      id="api-key-configuration-card"
+    >
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <div
+            class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+            [class.bg-emerald-100]="chatService.hasApiKey()"
+            [class.text-emerald-700]="chatService.hasApiKey()"
+            [class.bg-amber-100]="!chatService.hasApiKey()"
+            [class.text-amber-700]="!chatService.hasApiKey()"
+          >
+            <mat-icon class="text-lg">vpn_key</mat-icon>
+          </div>
+          <div>
+            <h3 class="text-xs sm:text-sm font-bold text-stone-900 flex items-center gap-2">
+              <span>Configuración de tu Clave API de Gemini</span>
+              @if (chatService.hasApiKey()) {
+                <span class="text-[10px] bg-emerald-600 text-white font-mono px-1.5 py-0.2 rounded font-semibold">
+                  ACTIVA
+                </span>
+              } @else {
+                <span class="text-[10px] bg-amber-500 text-white font-mono px-1.5 py-0.2 rounded font-semibold">
+                  REQUERIDA
+                </span>
+              }
+            </h3>
+            <p class="text-[11px] sm:text-xs text-stone-500">
+              Ingresa tu propia clave para interactuar con el modelo <strong>Gemini 3.8 Flash</strong> sin restricciones.
+            </p>
+          </div>
+        </div>
+
+        <a
+          href="https://aistudio.google.com/app/apikey"
+          target="_blank"
+          rel="noopener noreferrer"
+          id="link-get-gemini-key"
+          class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors shrink-0 self-start sm:self-center min-h-[36px]"
+        >
+          <span>Obtener clave gratis en Google AI Studio</span>
+          <mat-icon class="text-xs">open_in_new</mat-icon>
+        </a>
+      </div>
+
+      <!-- Input Field & Actions -->
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end pt-1">
+        <div class="sm:col-span-7 lg:col-span-8">
+          <label for="input-gemini-api-key" class="block text-[11px] font-semibold text-stone-700 mb-1">
+            Clave de API de Gemini (Google AI Studio)
+          </label>
+          <div class="relative flex items-center">
+            <input
+              id="input-gemini-api-key"
+              [type]="showApiKey() ? 'text' : 'password'"
+              [value]="tempApiKey()"
+              (input)="tempApiKey.set($any($event.target).value)"
+              placeholder="AIzaSy..."
+              class="w-full pl-3.5 pr-10 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-base sm:text-xs font-mono text-stone-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none min-h-[42px]"
+            />
+            <button
+              type="button"
+              id="btn-toggle-show-key"
+              (click)="toggleShowApiKey()"
+              class="absolute right-2.5 p-1 text-stone-400 hover:text-stone-700 cursor-pointer"
+              title="Mostrar u ocultar clave"
+            >
+              <mat-icon class="text-base">{{ showApiKey() ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="sm:col-span-5 lg:col-span-4 flex items-center gap-2">
+          <!-- Save Button -->
+          <button
+            type="button"
+            id="btn-save-api-key"
+            (click)="saveKey()"
+            class="flex-1 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer min-h-[42px]"
+          >
+            <mat-icon class="text-sm">save</mat-icon>
+            <span>Guardar</span>
+          </button>
+
+          <!-- Test/Validate Button -->
+          <button
+            type="button"
+            id="btn-test-api-key"
+            (click)="testKey()"
+            [disabled]="validationStatus().testing"
+            class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-stone-300 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer min-h-[42px]"
+          >
+            @if (validationStatus().testing) {
+              <mat-icon class="text-sm animate-spin">refresh</mat-icon>
+              <span>Verificando...</span>
+            } @else {
+              <mat-icon class="text-sm">verified</mat-icon>
+              <span>Validar</span>
+            }
+          </button>
+
+          <!-- Clear Key Button -->
+          @if (chatService.hasApiKey()) {
+            <button
+              type="button"
+              id="btn-clear-api-key"
+              (click)="clearKey()"
+              class="p-2.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-stone-200 rounded-xl transition-colors cursor-pointer min-h-[42px] min-w-[42px] flex items-center justify-center"
+              title="Eliminar clave guardada"
+            >
+              <mat-icon class="text-base">delete</mat-icon>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Feedback message after validation or save -->
+      @if (validationStatus().message) {
+        <div
+          class="p-2.5 rounded-xl text-xs flex items-center gap-2"
+          [class.bg-emerald-50]="validationStatus().success"
+          [class.text-emerald-800]="validationStatus().success"
+          [class.border]="validationStatus().success"
+          [class.border-emerald-200]="validationStatus().success"
+          [class.bg-rose-50]="validationStatus().success === false"
+          [class.text-rose-800]="validationStatus().success === false"
+          [class.border-rose-200]="validationStatus().success === false"
+          id="api-key-validation-alert"
+        >
+          <mat-icon class="text-sm">
+            {{ validationStatus().success ? 'check_circle' : 'error' }}
+          </mat-icon>
+          <span>{{ validationStatus().message }}</span>
+        </div>
+      }
+
+      <div class="flex items-center gap-2 text-[11px] text-stone-500 pt-0.5">
+        <mat-icon class="text-stone-400 text-xs">shield</mat-icon>
+        <span>
+          Tu clave se almacena exclusivamente de forma local y segura en el almacenamiento de tu navegador (localStorage) y nunca se comparte con terceros.
+        </span>
+      </div>
+    </div>
+  }
+
+  <!-- Active Nutrition Context Bar -->
+  <div class="bg-stone-100/80 border border-stone-200 rounded-xl p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-2.5 text-xs" id="chat-context-banner">
+    <div class="flex items-center gap-2">
+      <mat-icon class="text-emerald-700 text-sm">sync_alt</mat-icon>
+      <span class="font-bold text-stone-800">Contexto Activo de tu Plan:</span>
+    </div>
+    <div class="flex items-center gap-2 sm:gap-4 flex-wrap text-[11px] sm:text-xs">
+      <span class="bg-white px-2.5 py-1 rounded-lg border border-stone-200 font-medium text-stone-700">
+        Meta: <strong class="font-mono text-stone-900">{{ userContext().targetCalories }} kcal</strong>
+      </span>
+      <span class="bg-white px-2.5 py-1 rounded-lg border border-stone-200 font-medium text-stone-700">
+        Hoy: <strong class="font-mono text-emerald-700">{{ userContext().currentCalories }} kcal</strong>
+      </span>
+      <span class="bg-white px-2.5 py-1 rounded-lg border border-stone-200 font-medium text-stone-700 hidden sm:inline">
+        Macros Obj: P: <strong class="font-mono text-stone-900">{{ userContext().targetProteinGrams }}g</strong> ·
+        C: <strong class="font-mono text-stone-900">{{ userContext().targetCarbsGrams }}g</strong> ·
+        G: <strong class="font-mono text-stone-900">{{ userContext().targetFatGrams }}g</strong>
+      </span>
+      <span class="bg-white px-2 py-1 rounded-lg border border-stone-200 font-medium text-stone-600 text-[10px] uppercase tracking-wider">
+        {{ userContext().goal }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Chat Messages Container -->
+  <div class="bg-white rounded-2xl border border-stone-200 shadow-xs flex flex-col h-[520px] sm:h-[580px] overflow-hidden" id="chat-window-card">
+    <!-- Messages Scroll Area -->
+    <div
+      #messagesContainer
+      class="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 bg-gradient-to-b from-stone-50/50 to-white"
+      id="chat-messages-stream"
+    >
+      @for (msg of chatService.messages(); track msg.id) {
+        @if (msg.role === 'user') {
+          <!-- User Message Bubble -->
+          <div class="flex justify-end gap-2.5" [id]="'chat-msg-' + msg.id">
+            <div class="max-w-[85%] sm:max-w-[75%] space-y-1">
+              <div class="bg-stone-900 text-white rounded-2xl rounded-tr-xs p-3.5 sm:p-4 text-xs sm:text-sm leading-relaxed shadow-xs">
+                <p class="whitespace-pre-wrap font-sans">{{ msg.content }}</p>
+              </div>
+              <div class="text-[10px] text-stone-400 text-right pr-1">
+                Tú
+              </div>
+            </div>
+            <div class="w-7 h-7 rounded-full bg-stone-200 text-stone-700 flex items-center justify-center shrink-0 mt-1">
+              <mat-icon class="text-sm">person</mat-icon>
+            </div>
+          </div>
+        } @else {
+          <!-- Gemini Model Message Bubble -->
+          <div class="flex justify-start gap-2.5" [id]="'chat-msg-' + msg.id">
+            <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-1">
+              <mat-icon class="text-base">smart_toy</mat-icon>
+            </div>
+            <div class="max-w-[90%] sm:max-w-[80%] space-y-1">
+              <div class="bg-stone-50 border border-stone-200 rounded-2xl rounded-tl-xs p-4 sm:p-5 text-xs sm:text-sm text-stone-800 leading-relaxed shadow-xs space-y-2">
+                <div class="prose prose-stone prose-xs max-w-none whitespace-pre-wrap font-sans">
+                  {{ msg.content }}
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-1">
+                <div class="text-[10px] text-stone-400 flex items-center gap-1">
+                  <span>NutriAI · Gemini 3.8 Flash</span>
+                </div>
+                <button
+                  type="button"
+                  [id]="'btn-copy-' + msg.id"
+                  (click)="copyMessage(msg.content, msg.id)"
+                  class="text-[11px] text-stone-400 hover:text-stone-700 flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Copiar respuesta"
+                >
+                  <mat-icon class="text-xs">
+                    {{ copyFeedbackId() === msg.id ? 'check' : 'content_copy' }}
+                  </mat-icon>
+                  <span>{{ copyFeedbackId() === msg.id ? 'Copiado' : 'Copiar' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      }
+
+      <!-- Loading Typing Indicator -->
+      @if (chatService.isLoading()) {
+        <div class="flex justify-start gap-2.5 items-center" id="chat-loading-indicator">
+          <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
+            <mat-icon class="text-base">smart_toy</mat-icon>
+          </div>
+          <div class="bg-stone-50 border border-stone-200 rounded-2xl rounded-tl-xs px-4 py-3 text-xs text-stone-600 flex items-center gap-2">
+            <div class="flex items-center gap-1">
+              <div class="w-2 h-2 rounded-full bg-emerald-500 animate-bounce"></div>
+              <div class="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style="animation-delay: 0.2s"></div>
+              <div class="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style="animation-delay: 0.4s"></div>
+            </div>
+            <span class="font-medium text-[11px] text-stone-500">Gemini 3.8 Flash analizando tu consulta...</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Suggested Prompt Chips Carousel / Row -->
+    <div class="p-2.5 bg-stone-50 border-t border-stone-200/80 overflow-x-auto scrollbar-none flex items-center gap-2 touch-pan-x" id="chat-prompt-chips">
+      <span class="text-[11px] text-stone-500 font-bold shrink-0 flex items-center gap-1 pl-1">
+        <mat-icon class="text-xs text-amber-500">lightbulb</mat-icon>
+        Sugerencias:
+      </span>
+      @for (chip of promptChips; track chip) {
+        <button
+          type="button"
+          (click)="usePromptChip(chip)"
+          class="shrink-0 text-[11px] font-medium px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-xl transition-colors cursor-pointer whitespace-nowrap min-h-[32px] flex items-center"
+        >
+          {{ chip }}
+        </button>
+      }
+    </div>
+
+    <!-- Quick Retry Banner on Temporary Server Spike (503) -->
+    @if (chatService.lastFailedPrompt() && !chatService.isLoading()) {
+      <div class="px-4 py-2 bg-amber-50 border-t border-amber-200/80 flex items-center justify-between gap-3 text-xs text-amber-900" id="chat-retry-banner">
+        <div class="flex items-center gap-2 truncate">
+          <mat-icon class="text-base text-amber-600 shrink-0">info</mat-icon>
+          <span class="truncate text-[11px] sm:text-xs">¿Ocurrió un error o alta demanda? Puedes reintentar tu última consulta.</span>
+        </div>
+        <button
+          type="button"
+          id="btn-retry-last-message"
+          (click)="retryLastPrompt()"
+          class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0 cursor-pointer transition-colors"
+        >
+          <mat-icon class="text-xs">refresh</mat-icon>
+          <span>Reintentar</span>
+        </button>
+      </div>
+    }
+
+    <!-- Chat Input Form -->
+    <div class="p-3 sm:p-4 bg-white border-t border-stone-200" id="chat-input-bar">
+      <div class="flex items-end gap-2">
+        <div class="flex-1 relative">
+          <textarea
+            id="chat-input-textarea"
+            rows="2"
+            [value]="inputMessage()"
+            (input)="inputMessage.set($any($event.target).value)"
+            (keydown)="onKeyDown($event)"
+            placeholder="Pregunta a NutriAI sobre nutrición, alimentos, calorías, recetas... (Enter para enviar)"
+            class="w-full p-3 bg-stone-50 border border-stone-300 rounded-xl text-base sm:text-xs text-stone-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none min-h-[46px]"
+          ></textarea>
+        </div>
+
+        <button
+          type="button"
+          id="btn-chat-send"
+          (click)="sendMessage()"
+          [disabled]="!inputMessage().trim() || chatService.isLoading()"
+          class="h-[46px] px-4 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0 min-w-[46px]"
+        >
+          <mat-icon class="text-base">send</mat-icon>
+          <span class="hidden sm:inline">Enviar</span>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between text-[10px] text-stone-400 mt-2 px-1">
+        <span>Pulsa Enter para enviar o Shift+Enter para salto de línea</span>
+        <span>Potenciado por Gemini 3.8 Flash</span>
+      </div>
+    </div>
+  </div>
+</div>

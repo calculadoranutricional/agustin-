@@ -1,0 +1,29 @@
+/* Global styles for Nutritional Calculator */
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+@import "tailwindcss";
+
+/* Touch & Mobile UX Optimizations */
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+body {
+  overflow-x: hidden;
+  touch-action: manipulation;
+}
+
+/* Hide scrollbar for clean horizontal chip bars on mobile */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe area bottom padding for mobile sticky navigation bars */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
