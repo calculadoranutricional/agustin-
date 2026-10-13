@@ -11,7 +11,8 @@ import {GoogleGenAI, Type} from '@google/genai';
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(express.json({limit: '100kb'}));
 const angularApp = new AngularNodeAppEngine();
 
 function getGenAI(apiKeyOverride?: string): GoogleGenAI | null {
@@ -141,16 +142,22 @@ app.post('/api/validate-key', async (req, res) => {
   }
 });
 
+import {
+  validateAnalyzeFoodInput,
+  validateChatMessageInput,
+} from './app/utils/server-validation';
+
 /**
  * Endpoint para chat interactivo con Gemini 3.8 Flash especializado en nutrición
  */
 app.post('/api/chat', async (req, res) => {
   try {
     const {message, history, context} = req.body;
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    const validation = validateChatMessageInput(message, context);
+    if (!validation.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Se requiere un mensaje para el chat',
+        message: validation.message,
       });
     }
 
@@ -184,14 +191,15 @@ app.post('/api/chat', async (req, res) => {
         '\nUtiliza este contexto para personalizar tus recomendaciones de alimentos, porciones y balance diario cuando sea relevante.';
     }
 
-    // Build chat contents array
+    // Build chat contents array (max 10 history items, max 2000 chars each)
     const contents: {role: string; parts: {text: string}[]}[] = [];
     if (Array.isArray(history)) {
-      for (const item of history) {
+      const recentHistory = history.slice(-10);
+      for (const item of recentHistory) {
         if ((item.role === 'user' || item.role === 'model') && typeof item.content === 'string') {
           contents.push({
             role: item.role,
-            parts: [{text: item.content}],
+            parts: [{text: item.content.slice(0, 2000)}],
           });
         }
       }
@@ -284,10 +292,11 @@ app.post('/api/chat', async (req, res) => {
 app.post('/api/analyze-food', async (req, res) => {
   try {
     const {query} = req.body;
-    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+    const validation = validateAnalyzeFoodInput(query);
+    if (!validation.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Se requiere una descripción de alimento o preparación',
+        message: validation.message,
       });
     }
 
