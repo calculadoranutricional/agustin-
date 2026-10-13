@@ -9,6 +9,7 @@ import {
   UserProfile,
 } from '../models/nutrition.models';
 import {ChatService} from './chat.service';
+import {analyzeFoodClient} from '../utils/gemini-client';
 
 const DEFAULT_PROFILE: UserProfile = {
   gender: 'male',
@@ -406,20 +407,29 @@ export class NutritionService {
 
   // AI Food Analysis client caller
   async analyzeFoodWithAI(query: string): Promise<AIAnalysisResponse> {
+    const key = this.chatService.apiKey().trim();
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      const key = this.chatService.apiKey().trim();
       if (key) {
         headers['x-gemini-api-key'] = key;
       }
 
-      const response = await fetch('/api/analyze-food', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({query}),
-      });
+      let response: Response | null = null;
+      try {
+        response = await fetch('/api/analyze-food', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({query}),
+        });
+      } catch {
+        response = null;
+      }
+
+      if (!response || response.status === 404) {
+        return await analyzeFoodClient(key, query);
+      }
 
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as {
@@ -436,10 +446,7 @@ export class NutritionService {
       const data = (await response.json()) as AIAnalysisResponse;
       return data;
     } catch {
-      return {
-        success: false,
-        message: 'Error de red al consultar el analizador nutricional',
-      };
+      return await analyzeFoodClient(key, query);
     }
   }
 

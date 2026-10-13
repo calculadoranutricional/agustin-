@@ -1,5 +1,6 @@
 import {Injectable, computed, signal} from '@angular/core';
 import {ChatMessage} from '../models/nutrition.models';
+import {chatClient, validateApiKeyClient} from '../utils/gemini-client';
 
 export interface UserChatContext {
   targetCalories?: number;
@@ -101,6 +102,11 @@ export class ChatService {
         body: JSON.stringify({apiKey: key}),
       });
 
+      if (response.status === 404) {
+        // Fallback for static hosting like GitHub Pages
+        return await validateApiKeyClient(key);
+      }
+
       const data = (await response.json()) as {success: boolean; message?: string};
       if (response.ok && data.success) {
         return {
@@ -114,10 +120,8 @@ export class ChatService {
         };
       }
     } catch {
-      return {
-        success: false,
-        message: 'No se pudo conectar con el servidor para verificar la clave.',
-      };
+      // If network/server endpoint not available, fall back to direct client API call
+      return await validateApiKeyClient(key);
     }
   }
 
@@ -160,17 +164,22 @@ export class ChatService {
         headers['x-gemini-api-key'] = this.apiKey().trim();
       }
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message: text,
-          history: apiHistory,
-          context: userContext,
-        }),
-      });
+      let response: Response | null = null;
+      try {
+        response = await fetch('/api/chat', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message: text,
+            history: apiHistory,
+            context: userContext,
+          }),
+        });
+      } catch {
+        response = null;
+      }
 
-      const data = (await response.json()) as {
+      let data: {
         success: boolean;
         reply?: string;
         message?: string;
@@ -178,7 +187,20 @@ export class ChatService {
         invalidKey?: boolean;
       };
 
-      if (!response.ok || !data.success) {
+      if (!response || response.status === 404) {
+        // Direct client fallback for static hosting (GitHub Pages)
+        data = await chatClient(this.apiKey(), text, apiHistory, userContext);
+      } else {
+        data = (await response.json()) as {
+          success: boolean;
+          reply?: string;
+          message?: string;
+          needsApiKey?: boolean;
+          invalidKey?: boolean;
+        };
+      }
+
+      if (!data.success) {
         this.lastFailedPrompt.set(text);
         if (data.needsApiKey || data.invalidKey) {
           this.isApiKeyConfigOpen.set(true);
