@@ -1,18 +1,12 @@
 import {Injectable, computed, signal} from '@angular/core';
 import {ChatMessage} from '../models/nutrition.models';
+import {
+  UserChatContext,
+  sendChatMessageClient,
+  validateGeminiApiKeyClient,
+} from '../utils/gemini-client';
 
-export interface UserChatContext {
-  targetCalories?: number;
-  targetProteinGrams?: number;
-  targetCarbsGrams?: number;
-  targetFatGrams?: number;
-  targetFiberGrams?: number;
-  currentCalories?: number;
-  currentProtein?: number;
-  currentCarbs?: number;
-  currentFat?: number;
-  goal?: string;
-}
+export type {UserChatContext};
 
 const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome-msg',
@@ -101,6 +95,10 @@ export class ChatService {
         body: JSON.stringify({apiKey: key}),
       });
 
+      if (response.status === 404) {
+        return await validateGeminiApiKeyClient(key);
+      }
+
       const data = (await response.json()) as {success: boolean; message?: string};
       if (response.ok && data.success) {
         return {
@@ -114,10 +112,7 @@ export class ChatService {
         };
       }
     } catch {
-      return {
-        success: false,
-        message: 'No se pudo conectar con el servidor para verificar la clave.',
-      };
+      return await validateGeminiApiKeyClient(key);
     }
   }
 
@@ -160,17 +155,7 @@ export class ChatService {
         headers['x-gemini-api-key'] = this.apiKey().trim();
       }
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message: text,
-          history: apiHistory,
-          context: userContext,
-        }),
-      });
-
-      const data = (await response.json()) as {
+      let data: {
         success: boolean;
         reply?: string;
         message?: string;
@@ -178,7 +163,46 @@ export class ChatService {
         invalidKey?: boolean;
       };
 
-      if (!response.ok || !data.success) {
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message: text,
+            history: apiHistory,
+            context: userContext,
+          }),
+        });
+
+        if (response.status === 404) {
+          data = await sendChatMessageClient(
+            this.apiKey().trim(),
+            text,
+            apiHistory,
+            userContext,
+          );
+        } else {
+          data = (await response.json()) as {
+            success: boolean;
+            reply?: string;
+            message?: string;
+            needsApiKey?: boolean;
+            invalidKey?: boolean;
+          };
+          if (!response.ok) {
+            data.success = false;
+          }
+        }
+      } catch {
+        data = await sendChatMessageClient(
+          this.apiKey().trim(),
+          text,
+          apiHistory,
+          userContext,
+        );
+      }
+
+      if (!data.success) {
         this.lastFailedPrompt.set(text);
         if (data.needsApiKey || data.invalidKey) {
           this.isApiKeyConfigOpen.set(true);
@@ -219,13 +243,13 @@ export class ChatService {
         id: 'msg-net-err-' + Date.now(),
         role: 'model',
         content:
-          '⚠️ **Error de conexión:** No se pudo enviar el mensaje al servidor. Comprueba tu conexión de red.',
+          '⚠️ **Error de conexión:** No se pudo enviar el mensaje. Comprueba tu conexión de red.',
         timestamp: Date.now(),
       };
       const withNetErr = [...this.messages(), netErrorMsg];
       this.messages.set(withNetErr);
       this.saveMessagesToStorage(withNetErr);
-      this.errorMessage.set('Error de conexión con el servidor');
+      this.errorMessage.set('Error de conexión');
     } finally {
       this.isLoading.set(false);
     }
