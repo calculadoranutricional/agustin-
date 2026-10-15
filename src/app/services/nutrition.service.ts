@@ -9,6 +9,7 @@ import {
   UserProfile,
 } from '../models/nutrition.models';
 import {ChatService} from './chat.service';
+import {clientAnalyzeFood} from '../utils/gemini-client';
 
 const DEFAULT_PROFILE: UserProfile = {
   gender: 'male',
@@ -406,40 +407,46 @@ export class NutritionService {
 
   // AI Food Analysis client caller
   async analyzeFoodWithAI(query: string): Promise<AIAnalysisResponse> {
+    const key = this.chatService.apiKey().trim();
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      const key = this.chatService.apiKey().trim();
       if (key) {
         headers['x-gemini-api-key'] = key;
       }
 
-      const response = await fetch('/api/analyze-food', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({query}),
-      });
-
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as {
-          message?: string;
-        };
-        return {
-          success: false,
-          message:
-            errorData.message ||
-            'No se pudo conectar con el servicio de análisis nutricional',
-        };
+      let response: Response | null = null;
+      try {
+        response = await fetch('/api/analyze-food', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({query}),
+        });
+      } catch {
+        response = null;
       }
 
-      const data = (await response.json()) as AIAnalysisResponse;
-      return data;
+      if (response && response.status !== 404) {
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({}))) as {
+            message?: string;
+          };
+          return {
+            success: false,
+            message:
+              errorData.message ||
+              'No se pudo conectar con el servicio de análisis nutricional',
+          };
+        }
+
+        const data = (await response.json()) as AIAnalysisResponse;
+        return data;
+      }
+
+      return await clientAnalyzeFood(key, query);
     } catch {
-      return {
-        success: false,
-        message: 'Error de red al consultar el analizador nutricional',
-      };
+      return await clientAnalyzeFood(key, query);
     }
   }
 
