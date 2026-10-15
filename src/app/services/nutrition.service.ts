@@ -9,6 +9,7 @@ import {
   UserProfile,
 } from '../models/nutrition.models';
 import {ChatService} from './chat.service';
+import {analyzeFoodClient} from '../utils/gemini-client';
 
 const DEFAULT_PROFILE: UserProfile = {
   gender: 'male',
@@ -406,11 +407,11 @@ export class NutritionService {
 
   // AI Food Analysis client caller
   async analyzeFoodWithAI(query: string): Promise<AIAnalysisResponse> {
+    const key = this.chatService.apiKey().trim();
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      const key = this.chatService.apiKey().trim();
       if (key) {
         headers['x-gemini-api-key'] = key;
       }
@@ -420,6 +421,11 @@ export class NutritionService {
         headers,
         body: JSON.stringify({query}),
       });
+
+      if (response.status === 404) {
+        const clientRes = await analyzeFoodClient(key, query);
+        return clientRes as AIAnalysisResponse;
+      }
 
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as {
@@ -436,10 +442,8 @@ export class NutritionService {
       const data = (await response.json()) as AIAnalysisResponse;
       return data;
     } catch {
-      return {
-        success: false,
-        message: 'Error de red al consultar el analizador nutricional',
-      };
+      const clientRes = await analyzeFoodClient(key, query);
+      return clientRes as AIAnalysisResponse;
     }
   }
 
