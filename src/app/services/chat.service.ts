@@ -1,5 +1,10 @@
 import {Injectable, computed, signal} from '@angular/core';
 import {ChatMessage} from '../models/nutrition.models';
+import {
+  DirectChatResponse,
+  sendMessageDirect,
+  validateApiKeyDirect,
+} from '../utils/gemini-client';
 
 export interface UserChatContext {
   targetCalories?: number;
@@ -101,6 +106,11 @@ export class ChatService {
         body: JSON.stringify({apiKey: key}),
       });
 
+      const contentType = response.headers.get('content-type') || '';
+      if (response.status === 404 || contentType.includes('text/html')) {
+        return await validateApiKeyDirect(key);
+      }
+
       const data = (await response.json()) as {success: boolean; message?: string};
       if (response.ok && data.success) {
         return {
@@ -114,10 +124,7 @@ export class ChatService {
         };
       }
     } catch {
-      return {
-        success: false,
-        message: 'No se pudo conectar con el servidor para verificar la clave.',
-      };
+      return await validateApiKeyDirect(key);
     }
   }
 
@@ -160,25 +167,40 @@ export class ChatService {
         headers['x-gemini-api-key'] = this.apiKey().trim();
       }
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message: text,
-          history: apiHistory,
-          context: userContext,
-        }),
-      });
+      let data: DirectChatResponse;
 
-      const data = (await response.json()) as {
-        success: boolean;
-        reply?: string;
-        message?: string;
-        needsApiKey?: boolean;
-        invalidKey?: boolean;
-      };
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message: text,
+            history: apiHistory,
+            context: userContext,
+          }),
+        });
 
-      if (!response.ok || !data.success) {
+        const contentType = response.headers.get('content-type') || '';
+        if (response.status === 404 || contentType.includes('text/html')) {
+          data = await sendMessageDirect(
+            this.apiKey(),
+            text,
+            apiHistory,
+            userContext,
+          );
+        } else {
+          data = (await response.json()) as DirectChatResponse;
+        }
+      } catch {
+        data = await sendMessageDirect(
+          this.apiKey(),
+          text,
+          apiHistory,
+          userContext,
+        );
+      }
+
+      if (!data.success) {
         this.lastFailedPrompt.set(text);
         if (data.needsApiKey || data.invalidKey) {
           this.isApiKeyConfigOpen.set(true);
